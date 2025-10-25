@@ -1,4 +1,4 @@
-/* CubeSat Orbit Lab — Look&Feel KubeApp (v4 Three.js) */
+/* CubeSat Orbit Lab — Look&Feel KubeApp (v3) */
 :root{
   --bg:#050a1e; --bg2:#0a1233; --ink:#eaf1ff; --muted:#9fb0d8;
   --card:#0b143a; --line:#1b2a66; --cta:#21c8a6; --cta2:#69a1ff; --glow:#2dd4bf; --accent:#8b5cf6;
@@ -55,10 +55,6 @@ canvas{display:block; width:100%; height:auto}
   background:#0a0f2acc; padding:8px 10px; border-radius:10px; border:1px solid #1a2355;
   box-shadow:0 0 0 1px rgba(45,212,191,.2), 0 0 20px rgba(45,212,191,.1);
   animation: hudpulse 4s ease-in-out infinite;
-}
-.mode-badge{
-  position:absolute; right:10px; top:10px; font:11px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  background:#05122f; border:1px solid #16306d; color:#9dbcf9; padding:6px 8px; border-radius:8px; opacity:.9;
 }
 @keyframes hudpulse{
   0%,100%{box-shadow:0 0 0 1px rgba(45,212,191,.2), 0 0 16px rgba(45,212,191,.08)}

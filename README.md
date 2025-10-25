@@ -1,23 +1,13 @@
-# CubeSat Orbit Lab — pezzaliAPP (v2)
+# CubeSat Orbit Lab — pezzaliAPP (v3)
 
-Gioco scientifico divulgativo che simula il lancio e il moto orbitale di un CubeSat attorno alla Terra.
-Canvas 2D con proiezione prospettica (effetto 3D), nessuna libreria esterna, PWA offline.
+Aggiunte principali:
+- **Drag atmosferico (LEO)** con parametro **BC (Cd·A/m)** semplificato
+- **Ombra** con umbra/penombra + rilevamento eclissi del CubeSat
+- **Export CSV** telemetria (t, x, y, z, alt, a, e, i, RAAN, ω, M₀)
+- **Landing hero** e micro-animazioni stile KubeApp
 
-## Funzioni
-- Scenari rapidi: **Lancio**, **LEO 400 km**, **Ellittica 300×800 km**, **GTO** semplificata
-- Parametri regolabili: perigeo, apogeo, inclinazione, RAAN (Ω), **argomento del perigeo (ω)**, **anomalia media iniziale (M₀)**,
-  velocità simulazione, lunghezza scia.
-- Elementi grafici: assi, atmosfera, ombra terminatore, trail orbitale, pannelli solari del CubeSat
-- Look&Feel tipo KubeApp: palette, tipografia, micro-animazioni HUD e header
-- PWA installabile con **service worker** e **manifest**
-
-## Note fisiche
-- Orbite calcolate con elementi kepleriani (2-body). L’inserimento in orbita è una transizione parametrica verso i target.
-- L’effetto 3D è una proiezione prospettica su canvas 2D per massima portabilità.
-
-## Deploy rapido su GitHub Pages
-1. Crea un repo `CubeSat_Orbit_Lab` e carica i file della cartella.
-2. Settings → Pages → Deploy from branch → `main` / root.
-3. Apri l’URL pubblicato (https://username.github.io/CubeSat_Orbit_Lab/).
+## Note sul drag
+Modello esponenziale molto semplificato: ρ = ρ₀·exp(-h/Hs) con ρ₀=1.225 kg/m³, Hs=8.5 km.
+Decadimento di a ed e proporzionale a ρ e v³ (euristico per scopi divulgativi).
 
 MIT — © 2025 pezzaliAPP

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <title>CubeSat Orbit Lab — pezzaliAPP</title>
   <meta name="theme-color" content="#0b1022">
-  <meta name="description" content="Simulatore divulgativo di lancio e orbite di un CubeSat. 3D Three.js + fallback Canvas, PWA offline.">
+  <meta name="description" content="Simulatore divulgativo di lancio e orbite di un CubeSat. Canvas 2D con proiezione 3D, PWA offline.">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -16,7 +16,7 @@
     <img src="icons/icon-192.png" alt="Icona" class="logo">
     <div class="titles">
       <h1>CubeSat Orbit Lab</h1>
-      <p class="tag">Three.js 3D + Canvas fallback · Keplero + Drag · PWA</p>
+      <p class="tag">Canvas quasi‑3D · Keplero + Drag · PWA offline</p>
     </div>
   </div>
   <nav>
@@ -30,12 +30,8 @@
 
 <main>
   <section class="canvas-wrap">
-    <!-- 3D -->
-    <canvas id="view3d" width="960" height="540" aria-label="Simulazione 3D orbita CubeSat"></canvas>
-    <!-- 2D fallback -->
-    <canvas id="view2d" width="960" height="540" aria-label="Simulazione 2D orbita CubeSat" hidden></canvas>
+    <canvas id="view" width="960" height="540" aria-label="Simulazione orbita CubeSat"></canvas>
     <div class="hud" id="hud"></div>
-    <div class="mode-badge" id="modeBadge">3D</div>
   </section>
 
   <section class="controls">
@@ -53,7 +49,6 @@
         <input id="cda" type="range" min="0.001" max="0.2" step="0.001" value="0.02">
         <span id="cdaVal">0.020</span>
       </label>
-      <label class="toggle-inline"><input type="checkbox" id="toggle3d" checked> Modalità 3D</label>
     </div>
     <div class="group">
       <label>Altitudine Perigeo (km)
@@ -103,8 +98,14 @@
 
   <section class="about">
     <h2>Cos'è</h2>
-    <p><strong>CubeSat Orbit Lab</strong> in versione <b>3D Three.js</b>, con fallback automatico alla versione <b>2D Canvas</b> se necessario.
-    Fisica Keplero+drag, export CSV, PWA offline.</p>
+    <p><strong>CubeSat Orbit Lab</strong> è un gioco scientifico divulgativo che mostra come un <em>CubeSat</em> viene inserito in orbita e come si muove attorno alla Terra.
+       L'animazione usa un canvas 2D con proiezione prospettica per un effetto "quasi 3D" leggero e portabile.</p>
+    <p>Modalità fisiche:
+      <ul>
+        <li><b>Keplero</b> (2-body) per orbite conservative</li>
+        <li><b>Numerica</b> (gravità + drag esponenziale) quando abiliti “Drag atmosferico”</li>
+      </ul>
+    </p>
   </section>
 </main>
 
@@ -112,8 +113,7 @@
   <p>© 2025 pezzaliAPP — MIT License · Codice sorgente locale in questa cartella.</p>
 </footer>
 
-<script type="module" src="app3d.js"></script>
-<script nomodule src="app2d.js"></script>
+<script src="app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function(){

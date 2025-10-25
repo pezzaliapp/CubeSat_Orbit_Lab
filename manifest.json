@@ -1,6 +1,6 @@
 {
   "name": "CubeSat Orbit Lab \u2014 pezzaliAPP",
-  "short_name": "CubeSat Orbit 3D",
+  "short_name": "CubeSat Orbit",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b1022",
