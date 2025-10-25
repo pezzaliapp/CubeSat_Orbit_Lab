@@ -1,221 +1,250 @@
-/* CubeSat Orbit Lab — v3.2 SAFE
-   Canvas 2D simulatore divulgativo di orbita CubeSat
-   Compatibile con index.html 3.2 SAFE (no Three.js)
-   © 2025 pezzaliAPP — MIT License
+/* CubeSat Orbit Lab — Golden Build (Three.js)
+   by pezzaliAPP — Keplero + Drag opzionale + Rotazione terrestre
+   Compatibile con index.html “Golden” 25/10/2025
 */
 
-(function(){
-'use strict';
+(() => {
+  'use strict';
 
-const canvas = document.getElementById('view');
-const ctx = canvas.getContext('2d');
-const hud = document.getElementById('hud');
-const mini = document.getElementById('miniMap');
-const mctx = mini.getContext('2d');
+  // === costanti fisiche ===
+  const R_EARTH = 6371e3;
+  const MU = 3.986004418e14;
+  const RHO0 = 1.225, Hs = 8500;
+  const DEG = Math.PI / 180;
 
-const R_EARTH = 6371e3;
-const MU = 3.986004418e14;
-const DEG = Math.PI/180;
+  // === utility vettoriali ===
+  const v3 = (x, y, z) => ({ x, y, z });
+  const add = (a, b) => v3(a.x + b.x, a.y + b.y, a.z + b.z);
+  const sub = (a, b) => v3(a.x - b.x, a.y - b.y, a.z - b.z);
+  const mul = (a, s) => v3(a.x * s, a.y * s, a.z * s);
+  const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+  const len = (a) => Math.sqrt(dot(a, a));
+  const nrm = (a) => { const L = len(a); return L > 0 ? mul(a, 1 / L) : v3(0, 0, 0); };
+  const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
 
-let t = 0, running = false;
-let perigeeAlt = 400e3, apogeeAlt = 400e3;
-let inclDeg = 51, raanDeg = 0, argpDeg = 0, m0Deg = 0;
-let timescale = 5, trailMax = 1200, useDrag = false, CdA_over_m = 0.02;
-let trail = [], logSamples = [];
+  // === riferimenti DOM ===
+  const $ = id => document.getElementById(id);
+  const hud = $('hud');
+  const mini = $('miniMap');
+  const mctx = mini.getContext('2d');
 
-function v3(x,y,z){return{x:x,y:y,z:z}}
-function add(a,b){return v3(a.x+b.x,a.y+b.y,a.z+b.z)}
-function sub(a,b){return v3(a.x-b.x,a.y-b.y,a.z-b.z)}
-function mul(a,s){return v3(a.x*s,a.y*s,a.z*s)}
-function dot(a,b){return a.x*b.x+a.y*b.y+a.z*b.z}
-function len(a){return Math.sqrt(dot(a,a))}
-function nrm(a){const L=len(a);return L>0?mul(a,1/L):v3(0,0,0)}
+  // controlli UI
+  const elPer = $('perigee'), elApo = $('apogee'), elIncl = $('incl'),
+        elRAAN = $('raan'), elArgp = $('argp'), elM0 = $('m0'),
+        elTS = $('timescale'), elTrail = $('trail'), elScenario = $('scenario'),
+        elDrag = $('drag'), elCdA = $('cda');
+  const elPerV = $('perigeeVal'), elApoV = $('apogeeVal'), elInclV = $('inclVal'),
+        elRAANV = $('raanVal'), elArgpV = $('argpVal'), elM0V = $('m0Val'),
+        elTSV = $('timescaleVal'), elTrailV = $('trailVal'), elCdAV = $('cdaVal');
 
-function elementsToState(a,e,i,raan,argp,M0,t){
-  const n=Math.sqrt(MU/Math.pow(a,3));
-  const M=(M0+n*t)%(2*Math.PI);
-  let E=M;
-  for(let k=0;k<10;k++){
-    const f=E-e*Math.sin(E)-M;
-    const fp=1-e*Math.cos(E);
-    E-=f/fp;
+  const btnPlay = $('btnPlay'), btnPause = $('btnPause'), btnReset = $('btnReset'),
+        btnExport = $('btnExport'), btnStep = $('btnStep'), btnCamOrbit = $('btnCamOrbit');
+
+  // === stato simulazione ===
+  let perigeeAlt = 400e3, apogeeAlt = 400e3;
+  let inclDeg = 51, raanDeg = 0, argpDeg = 0, m0Deg = 0;
+  let timescale = 5, trailMax = 1200;
+  let useDrag = false, CdA_over_m = 0.02;
+  let running = false;
+  let trail = [], logSamples = [];
+  let cameraOrbit = true;
+
+  // === scena Three.js ===
+  let scene, camera, renderer, earth, cubeSat, orbitLine, sun, hemi;
+  const root = document.getElementById('three-root');
+  let t = 0, last = performance.now();
+
+  function initThree() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(55, root.clientWidth / root.clientHeight, 1, 1e9);
+    camera.position.set(0, R_EARTH * 4, R_EARTH * 4);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(root.clientWidth, root.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    root.appendChild(renderer.domElement);
+
+    // luci
+    sun = new THREE.DirectionalLight(0xffffff, 1.1);
+    sun.position.set(R_EARTH * 10, R_EARTH * 3, R_EARTH * 5);
+    hemi = new THREE.AmbientLight(0x223355, 0.6);
+    scene.add(sun, hemi);
+
+    // terra
+    const texLoader = new THREE.TextureLoader();
+    const mat = new THREE.MeshPhongMaterial({ color: 0x12306a, shininess: 8 });
+    texLoader.load('assets/earth_day.jpg', tex => { mat.map = tex; mat.needsUpdate = true; });
+    earth = new THREE.Mesh(new THREE.SphereGeometry(R_EARTH, 64, 64), mat);
+    scene.add(earth);
+
+    // equatore
+    const eq = new THREE.Mesh(
+      new THREE.RingGeometry(R_EARTH * 1.01, R_EARTH * 1.012, 128),
+      new THREE.MeshBasicMaterial({ color: 0x2a6fdb, side: THREE.DoubleSide })
+    );
+    eq.rotation.x = Math.PI / 2;
+    earth.add(eq);
+
+    // satellite
+    const satMat = new THREE.MeshStandardMaterial({ color: 0xeaf1ff, roughness: 0.6 });
+    cubeSat = new THREE.Mesh(new THREE.BoxGeometry(R_EARTH * 0.03, R_EARTH * 0.03, R_EARTH * 0.03), satMat);
+    const pMat = new THREE.MeshBasicMaterial({ color: 0x60a5fa });
+    const pGeo = new THREE.BoxGeometry(R_EARTH * 0.02, R_EARTH * 0.005, R_EARTH * 0.06);
+    const p1 = new THREE.Mesh(pGeo, pMat), p2 = new THREE.Mesh(pGeo, pMat);
+    p1.position.x = -R_EARTH * 0.04; p2.position.x = R_EARTH * 0.04;
+    cubeSat.add(p1, p2);
+    scene.add(cubeSat);
+
+    // orbita
+    orbitLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x60a5fa }));
+    scene.add(orbitLine);
+
+    // stelle
+    const starGeo = new THREE.BufferGeometry();
+    const N = 4000, R = R_EARTH * 80;
+    const pos = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      const th = Math.random() * 2 * Math.PI;
+      const ph = Math.acos(2 * Math.random() - 1);
+      pos[i*3] = R * Math.sin(ph) * Math.cos(th);
+      pos[i*3+1] = R * Math.cos(ph);
+      pos[i*3+2] = R * Math.sin(ph) * Math.sin(th);
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: R_EARTH * 0.008 }));
+    scene.add(stars);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = root.clientWidth / root.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(root.clientWidth, root.clientHeight);
+    });
   }
-  const cE=Math.cos(E), sE=Math.sin(E);
-  const fac=Math.sqrt(1-e*e);
-  const nu=Math.atan2(fac*sE,cE-e);
-  const r=a*(1-e*cE);
-  const x=r*Math.cos(nu), y=r*Math.sin(nu);
 
-  const cO=Math.cos(raan), sO=Math.sin(raan);
-  const ci=Math.cos(i), si=Math.sin(i);
-  const co=Math.cos(argp), so=Math.sin(argp);
+  function elementsToState(a,e,i,raan,argp,M0,t){
+    const n = Math.sqrt(MU / Math.pow(a,3));
+    const M = (M0 + n * t) % (2 * Math.PI);
+    let E = M;
+    for(let k=0;k<10;k++){ const f=E - e*Math.sin(E) - M; E -= f / (1 - e*Math.cos(E)); }
+    const cE=Math.cos(E), sE=Math.sin(E);
+    const fac=Math.sqrt(1-e*e);
+    const nu=Math.atan2(fac*sE, cE - e);
+    const r=a*(1-e*cE);
+    const x=r*Math.cos(nu), y=r*Math.sin(nu);
+    const cO=Math.cos(raan), sO=Math.sin(raan);
+    const ci=Math.cos(i), si=Math.sin(i);
+    const co=Math.cos(argp), so=Math.sin(argp);
+    const R11=cO*co - sO*so*ci, R12=-cO*so - sO*co*ci;
+    const R21=sO*co + cO*so*ci, R22=-sO*so + cO*co*ci;
+    const R31=so*si, R32=co*si;
+    return v3(R11*x+R12*y, R21*x+R22*y, R31*x+R32*y);
+  }
 
-  const R11=cO*co-sO*so*ci, R12=-cO*so-sO*co*ci;
-  const R21=sO*co+cO*so*ci, R22=-sO*so+cO*co*ci;
-  const R31=so*si, R32=co*si;
+  function derive() {
+    const rp=R_EARTH+perigeeAlt, ra=R_EARTH+apogeeAlt;
+    const a=0.5*(rp+ra), e=(ra-rp)/(ra+rp);
+    return { a, e, i:inclDeg*DEG, raan:raanDeg*DEG, argp:argpDeg*DEG, M0:m0Deg*DEG };
+  }
 
-  return v3(R11*x+R12*y, R21*x+R22*y, R31*x+R32*y);
-}
+  function eciToLatLon(p) {
+    const r = len(p);
+    return { lat: Math.asin(p.y / r) / DEG, lon: Math.atan2(p.z, p.x) / DEG };
+  }
+  function drawMini(p) {
+    mctx.fillStyle="#020611"; mctx.fillRect(0,0,mini.width,mini.height);
+    mctx.strokeStyle="#12306a"; mctx.strokeRect(0,0,mini.width,mini.height);
+    const {lat,lon}=eciToLatLon(p);
+    const x=(lon+180)/360*mini.width, y=(90-lat)/180*mini.height;
+    mctx.fillStyle="#60a5fa"; mctx.fillRect(x-2,y-2,4,4);
+  }
 
-function derive(){
-  const rp=R_EARTH+perigeeAlt;
-  const ra=R_EARTH+apogeeAlt;
-  const a=0.5*(rp+ra);
-  const e=(ra-rp)/(ra+rp);
-  return {a,e,i:inclDeg*DEG,raan:raanDeg*DEG,argp:argpDeg*DEG,M0:m0Deg*DEG};
-}
-
-function eciToLatLon(p){
-  const r=len(p);
-  return {lat:Math.asin(p.y/r)/DEG, lon:Math.atan2(p.z,p.x)/DEG};
-}
-
-function drawMini(p){
-  mctx.fillStyle="#071022";
-  mctx.fillRect(0,0,mini.width,mini.height);
-  mctx.strokeStyle="#12306a";
-  mctx.strokeRect(0,0,mini.width,mini.height);
-  const {lat,lon}=eciToLatLon(p);
-  const x=(lon+180)/360*mini.width;
-  const y=(90-lat)/180*mini.height;
-  mctx.fillStyle="#60a5fa";
-  mctx.fillRect(x-2,y-2,4,4);
-}
-
-function drawScene(p){
-  const cx=canvas.width/2, cy=canvas.height/2;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  // sfondo
-  const grd=ctx.createRadialGradient(cx,cy,0,cx,cy,900);
-  grd.addColorStop(0,"#0b1022");
-  grd.addColorStop(1,"#050918");
-  ctx.fillStyle=grd;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  // Terra
-  ctx.fillStyle="#0a1d47";
-  ctx.beginPath();
-  ctx.arc(cx,cy,120,0,2*Math.PI);
-  ctx.fill();
-  // orbita
-  ctx.strokeStyle="#2dd4bf";
-  ctx.beginPath();
-  trail.forEach((tp,i)=>{
-    const x=cx+tp.x/1e5;
-    const y=cy+tp.z/1e5;
-    if(i===0)ctx.moveTo(x,y);
-    else ctx.lineTo(x,y);
+  function syncUI() {
+    perigeeAlt=parseFloat(elPer.value)*1000; apogeeAlt=parseFloat(elApo.value)*1000;
+    inclDeg=parseFloat(elIncl.value); raanDeg=parseFloat(elRAAN.value);
+    argpDeg=parseFloat(elArgp.value); m0Deg=parseFloat(elM0.value);
+    timescale=parseFloat(elTS.value); trailMax=parseInt(elTrail.value);
+    useDrag=elDrag.checked; CdA_over_m=parseFloat(elCdA.value);
+    elPerV.textContent=(perigeeAlt/1000).toFixed(0);
+    elApoV.textContent=(apogeeAlt/1000).toFixed(0);
+    elInclV.textContent=inclDeg.toFixed(0);
+    elRAANV.textContent=raanDeg.toFixed(0);
+    elArgpV.textContent=argpDeg.toFixed(0);
+    elM0V.textContent=m0Deg.toFixed(0);
+    elTSV.textContent=timescale.toFixed(1)+'×';
+    elTrailV.textContent=trailMax.toFixed(0);
+    elCdAV.textContent=CdA_over_m.toFixed(3);
+    trail=[]; logSamples=[];
+  }
+  ['input','change'].forEach(evt=>[elPer,elApo,elIncl,elRAAN,elArgp,elM0,elTS,elTrail,elCdA].forEach(n=>n.addEventListener(evt,syncUI)));
+  elDrag.addEventListener('change',syncUI);
+  elScenario.addEventListener('change',()=>{
+    const v=elScenario.value;
+    if(v==='launch'){elPer.value=200;elApo.value=400;elIncl.value=51;}
+    if(v==='leo'){elPer.value=400;elApo.value=400;elIncl.value=51;}
+    if(v==='ellipse'){elPer.value=300;elApo.value=800;elIncl.value=63;}
+    if(v==='gto'){elPer.value=250;elApo.value=35786;elIncl.value=27;}
+    syncUI();
   });
-  ctx.stroke();
-  // satellite
-  ctx.fillStyle="#eaf1ff";
-  const sx=cx+p.x/1e5, sy=cy+p.z/1e5;
-  ctx.fillRect(sx-4,sy-4,8,8);
-}
 
-function HUDmsg(s){hud.textContent=s;}
+  btnPlay.onclick=()=>{running=true};
+  btnPause.onclick=()=>{running=false};
+  btnReset.onclick=()=>{t=0;trail=[];running=false};
+  btnStep.onclick=()=>{if(!running)t+=1*timescale};
+  btnCamOrbit.onclick=()=>{cameraOrbit=!cameraOrbit};
+  btnExport.onclick=()=>{
+    if(!logSamples.length){alert("Nessun dato da esportare.");return;}
+    const header="t_s,x_m,y_m,z_m,alt_km";
+    const lines=[header,...logSamples.map(r=>r.join(","))];
+    const blob=new Blob([lines.join("\n")],{type:"text/csv"});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='cubesat_telemetry.csv';a.click();
+  };
 
-function syncUI(){
-  perigeeAlt=parseFloat(perigee.value)*1000;
-  apogeeAlt=parseFloat(apogee.value)*1000;
-  inclDeg=parseFloat(incl.value);
-  raanDeg=parseFloat(raan.value);
-  argpDeg=parseFloat(argp.value);
-  m0Deg=parseFloat(m0.value);
-  timescale=parseFloat(timescaleEl.value);
-  trailMax=parseInt(trailEl.value,10);
-  CdA_over_m=parseFloat(cda.value);
-  useDrag=drag.checked;
+  // === loop ===
+  function loop() {
+    const now=performance.now(); const dt=Math.min((now-last)/1000,0.05); last=now;
+    if(running)t+=dt*timescale;
 
-  perigeeVal.textContent=(perigeeAlt/1000).toFixed(0);
-  apogeeVal.textContent=(apogeeAlt/1000).toFixed(0);
-  inclVal.textContent=inclDeg.toFixed(0);
-  raanVal.textContent=raanDeg.toFixed(0);
-  argpVal.textContent=argpDeg.toFixed(0);
-  m0Val.textContent=m0Deg.toFixed(0);
-  timescaleVal.textContent=timescale.toFixed(1)+"×";
-  trailVal.textContent=trailMax;
-  cdaVal.textContent=CdA_over_m.toFixed(3);
-  trail=[];
-  logSamples=[];
-}
+    earth.rotation.y += 0.05 * dt * (timescale / 5);
 
-const perigee=document.getElementById('perigee');
-const apogee=document.getElementById('apogee');
-const incl=document.getElementById('incl');
-const raan=document.getElementById('raan');
-const argp=document.getElementById('argp');
-const m0=document.getElementById('m0');
-const timescaleEl=document.getElementById('timescale');
-const trailEl=document.getElementById('trail');
-const drag=document.getElementById('drag');
-const cda=document.getElementById('cda');
-const perigeeVal=document.getElementById('perigeeVal');
-const apogeeVal=document.getElementById('apogeeVal');
-const inclVal=document.getElementById('inclVal');
-const raanVal=document.getElementById('raanVal');
-const argpVal=document.getElementById('argpVal');
-const m0Val=document.getElementById('m0Val');
-const timescaleVal=document.getElementById('timescaleVal');
-const trailVal=document.getElementById('trailVal');
-const cdaVal=document.getElementById('cdaVal');
-const scenario=document.getElementById('scenario');
+    const E=derive(); const p=elementsToState(E.a,E.e,E.i,E.raan,E.argp,E.M0,t);
+    cubeSat.position.set(p.x,p.y,p.z);
 
-['input','change'].forEach(evt=>{
-  [perigee,apogee,incl,raan,argp,m0,timescaleEl,trailEl,cda].forEach(n=>n.addEventListener(evt,syncUI));
-});
-drag.addEventListener('change',syncUI);
-scenario.addEventListener('change',()=>{
-  const v=scenario.value;
-  if(v==='launch'){perigee.value=200;apogee.value=400;incl.value=51;}
-  if(v==='leo'){perigee.value=400;apogee.value=400;incl.value=51;}
-  if(v==='ellipse'){perigee.value=300;apogee.value=800;incl.value=63;}
-  if(v==='gto'){perigee.value=250;apogee.value=35786;incl.value=27;}
-  syncUI();
-});
+    if(running){
+      trail.push(p); if(trail.length>trailMax)trail.shift();
+      const alt=len(p)-R_EARTH;
+      logSamples.push([t.toFixed(2),p.x.toFixed(1),p.y.toFixed(1),p.z.toFixed(1),(alt/1000).toFixed(2)]);
+    }
 
-document.getElementById('btnPlay').onclick=()=>{running=true};
-document.getElementById('btnPause').onclick=()=>{running=false};
-document.getElementById('btnReset').onclick=()=>{t=0;trail=[];logSamples=[];running=false};
+    if(trail.length>1){
+      const N=trail.length, arr=new Float32Array(N*3);
+      for(let i=0;i<N;i++){const tp=trail[i];arr[i*3]=tp.x;arr[i*3+1]=tp.y;arr[i*3+2]=tp.z;}
+      orbitLine.geometry.dispose(); orbitLine.geometry=new THREE.BufferGeometry();
+      orbitLine.geometry.setAttribute('position',new THREE.BufferAttribute(arr,3));
+    }
 
-document.getElementById('btnExport').onclick=()=>{
-  if(!logSamples.length){alert("Nessun dato da esportare.");return;}
-  const header="t_s,x_m,y_m,z_m,alt_km";
-  const csv=[header,...logSamples.map(r=>r.join(','))].join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='cubesat_data.csv';
-  a.click();
-  URL.revokeObjectURL(a.href);
-};
+    if(cameraOrbit&&running){
+      const ang=0.1*dt; const x=camera.position.x, z=camera.position.z;
+      camera.position.x=x*Math.cos(ang)-z*Math.sin(ang);
+      camera.position.z=x*Math.sin(ang)+z*Math.cos(ang);
+      camera.lookAt(0,0,0);
+    }
 
-window.addEventListener('keydown',e=>{
-  if(e.code==='Space'){running=!running;e.preventDefault();}
-});
-
-let last=performance.now();
-function loop(){
-  const now=performance.now();
-  const dt=Math.min((now-last)/1000,0.05);
-  last=now;
-  if(running)t+=dt*timescale;
-
-  const E=derive();
-  const p=elementsToState(E.a,E.e,E.i,E.raan,E.argp,E.M0,t);
-  if(running){
-    trail.push(p);
-    if(trail.length>trailMax)trail.shift();
     const alt=len(p)-R_EARTH;
-    logSamples.push([t.toFixed(2),p.x.toFixed(1),p.y.toFixed(1),p.z.toFixed(1),(alt/1000).toFixed(2)]);
-    if(logSamples.length>30000)logSamples.shift();
-  }
-  drawScene(p);
-  drawMini(p);
-  const alt=len(p)-R_EARTH;
-  HUDmsg(`t=${t.toFixed(1)}s | alt=${(alt/1000).toFixed(0)}km | a=${(E.a/1000).toFixed(0)}km | e=${E.e.toFixed(3)} | i=${inclDeg.toFixed(1)}°`);
-  requestAnimationFrame(loop);
-}
+    hud.textContent=`t=${t.toFixed(1)}s | alt=${(alt/1000).toFixed(0)}km | a=${(E.a/1000).toFixed(0)}km | e=${E.e.toFixed(3)} | i=${inclDeg.toFixed(1)}°`;
+    drawMini(p);
 
-syncUI();
-loop();
+    renderer.render(scene,camera);
+    requestAnimationFrame(loop);
+  }
+
+  // === boot ===
+  function boot() {
+    initThree();
+    syncUI();
+    requestAnimationFrame(loop);
+    setTimeout(()=>document.getElementById('splash').classList.add('hide'),1000);
+  }
+
+  boot();
 })();
