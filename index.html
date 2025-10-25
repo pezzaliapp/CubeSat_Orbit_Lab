@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>CubeSat Orbit Lab — Standalone</title>
+<title>CubeSat Orbit Lab — Standalone + Ombra & Parallax</title>
 <style>
 :root{
   --bg:#050a1e; --bg2:#0a1233; --ink:#eaf1ff; --muted:#99add6;
@@ -61,11 +61,12 @@ canvas{display:block; width:100%; height:auto}
 .controls .toggles{display:flex; gap:16px; flex-wrap:wrap}
 footer{padding:20px; text-align:center; color:var(--muted)}
 .small{font-size:12px; color:var(--muted)}
+.badge{display:inline-block; margin-left:8px; padding:2px 8px; border-radius:999px; background:#14204e; color:#a7b7ef; font:700 11px/1 ui-monospace}
 </style>
 </head>
 <body>
 <header>
-  <h1>CubeSat Orbit Lab</h1>
+  <h1>CubeSat Orbit Lab <span class="badge">ombra+parallax</span></h1>
   <nav>
     <button id="btnPlay" class="primary">PLAY</button>
     <button id="btnPause" class="ghost">PAUSA</button>
@@ -140,7 +141,7 @@ footer{padding:20px; text-align:center; color:var(--muted)}
     </div>
   </section>
 
-  <p class="small">Versione standalone minima: nessun service worker, nessun manifest, nessuna dipendenza. Ideal per test e GitHub Pages.</p>
+  <p class="small">Standalone minimo, senza service worker o manifest. Ora con ombra (umbra/penumbra) e stelle in parallax + tilt terrestre 23.44°.</p>
 </main>
 
 <footer>© 2025 — MIT</footer>
@@ -148,38 +149,33 @@ footer{padding:20px; text-align:center; color:var(--muted)}
 <script>
 (function(){
   'use strict';
-  // ==== Costanti fisiche (semplificate)
-  const R_EARTH = 6371e3;            // raggio Terra [m]
-  const MU = 3.986004418e14;         // mu Terra [m^3/s^2]
+  // === Costanti fisiche
+  const R_EARTH = 6371e3;
+  const MU = 3.986004418e14;
+  const OBLIQUITY = 23.44 * Math.PI/180; // tilt asse terrestre
 
-  // ==== Canvas / stato base
+  // === Canvas / stato
   const canvas = document.getElementById('view');
   const ctx = canvas.getContext('2d');
-  let W = canvas.width, H = canvas.height, cx = W/2, cy = H/2;
+  let W = canvas.width, H = canvas.height, cx=W/2, cy=H/2;
 
-  let running = false;
-  let t = 0;                         // tempo simulazione [s]
-  let timescale = 5;
-  let trailMax = 600;
-  let trail = [];
+  let running = false, t = 0, timescale = 5, trailMax = 600, trail = [];
 
-  // Parametri orbitale (da UI)
-  let perigeeAlt = 400e3, apogeeAlt = 400e3;
-  let inclDeg = 51, raanDeg = 0, argpDeg = 0, m0Deg = 0;
+  let perigeeAlt=400e3, apogeeAlt=400e3, inclDeg=51, raanDeg=0, argpDeg=0, m0Deg=0;
+  let showAxes=true, showOrbit=true, showAtmo=true, showShadow=true;
 
-  let showAxes = true, showOrbit = true, showAtmo = true, showShadow = true;
-
-  // Camera orbitante per effetto 3D
+  // Camera
   const cam = { r: 2.8*R_EARTH, theta:-0.8, phi:0.9, fov:900, target:{x:0,y:0,z:0} };
 
-  // ==== Utilità
+  // Utils
   const clamp=(v,min,max)=>v<min?min:(v>max?max:v);
   const toRad=d=>d*Math.PI/180;
   const V=(x,y,z)=>({x,y,z});
+  const add=(a,b)=>V(a.x+b.x,a.y+b.y,a.z+b.z);
   const sub=(a,b)=>V(a.x-b.x,a.y-b.y,a.z-b.z);
   const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
   const mul=(a,s)=>V(a.x*s,a.y*s,a.z*s);
-  const nrm=a=>{const n=Math.hypot(a.x,a.y,a.z);return n?mul(a,1/n):V(0,0,0);};
+  const nrm=a=>{const n=Math.hypot(a.x,a.y,a.z); return n?mul(a,1/n):V(0,0,0);};
   const crs=(a,b)=>V(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x);
   function sph(r,th,ph){ return V(r*Math.cos(ph)*Math.cos(th), r*Math.sin(ph), r*Math.cos(ph)*Math.sin(th)); }
 
@@ -200,48 +196,115 @@ footer{padding:20px; text-align:center; color:var(--muted)}
     return Math.hypot(a.x-b.x, a.y-b.y);
   }
 
-  // ==== Keplero: elementi → stato (posizione)
+  // Keplero: elementi → posizione
   function elementsToState(a,e,i,raan,argp,M0,tt){
     const n = Math.sqrt(MU/Math.pow(a,3));
     const M = (M0 + n*tt) % (2*Math.PI);
-    // Newton-Raphson per E
     let E = M;
     for(let k=0;k<8;k++){
-      const f = E - e*Math.sin(E) - M;
-      const fp= 1 - e*Math.cos(E);
+      const f = E - e*Math.sin(E) - M, fp = 1 - e*Math.cos(E);
       E -= f/fp;
     }
-    const cosE = Math.cos(E), sinE = Math.sin(E);
+    const cosE=Math.cos(E), sinE=Math.sin(E);
     const nu = Math.atan2(Math.sqrt(1-e*e)*sinE, cosE - e);
     const r  = a*(1 - e*cosE);
     const xpf = r*Math.cos(nu), ypf = r*Math.sin(nu);
-
-    const cO=Math.cos(raan), sO=Math.sin(raan);
-    const ci=Math.cos(i),    si=Math.sin(i);
+    const cO=Math.cos(raan), sO=Math.sin(raan), ci=Math.cos(i), si=Math.sin(i);
     const co=Math.cos(argp), so=Math.sin(argp);
-
-    const x = (cO*co - sO*so*ci)*xpf + (-cO*so - sO*co*ci)*ypf;
-    const y = (so*si)*xpf + (co*si)*ypf;
-    const z = (sO*co + cO*so*ci)*xpf + (-sO*so + cO*co*ci)*ypf;
+    const x=(cO*co - sO*so*ci)*xpf + (-cO*so - sO*co*ci)*ypf;
+    const y=(so*si)*xpf + (co*si)*ypf;
+    const z=(sO*co + cO*so*ci)*xpf + (-sO*so + cO*co*ci)*ypf;
     return V(x,y,z);
   }
 
-  // ==== Disegno Terra e HUD
-  function drawEarth(){
+  // === Sole con stagionalità (declinazione varia tra ±ε)
+  function sunDirection(timeSec){
+    const season = timeSec / (200 * Math.PI); // velocità simbolica, lenta
+    const alpha = season;                      // ascensione retta
+    const delta = OBLIQUITY * Math.sin(season); // declinazione
+    const c = Math.cos(delta), s = Math.sin(delta);
+    // unit vector in frame equatoriale (x verso AR=0, z verso AR=90°)
+    return nrm(V(c*Math.cos(alpha), s, c*Math.sin(alpha)));
+  }
+
+  // Ombra (eclissi) — test cilindrico: dentro ombra se dietro la Terra e vicino all'asse
+  function inUmbra(p, sDir){
+    const d = dot(p, sDir);
+    if (d > 0) return false; // lato Sole
+    const perp = Math.sqrt(dot(p,p) - d*d);
+    return perp < R_EARTH;
+  }
+
+  // === Stelle parallax (3 strati)
+  const stars = (function seedStars(){
+    const rng=(i)=>{ let x = i*1664525 + 1013904223; x ^= x<<13; x ^= x>>17; x ^= x<<5; return Math.abs(x); };
+    const layers=[];
+    const counts=[120,80,40]; // far, mid, near
+    for(let L=0; L<3; L++){
+      const arr=[];
+      for(let i=0;i<counts[L];i++){
+        const rx = rng(i+L*997)%10000/10000;
+        const ry = rng(i+L*233)%10000/10000;
+        arr.push({x:rx, y:ry});
+      }
+      layers.push(arr);
+    }
+    return layers;
+  })();
+
+  function drawStars(now){
+    // Parallax: offset in base a cam.theta/phi e al layer
+    const par=[0.2, 0.5, 1.0];
+    ctx.save();
+    for(let L=0;L<3;L++){
+      ctx.globalAlpha = 0.55 + 0.15*L;
+      const k = par[L];
+      for(const s of stars[L]){
+        const x = ((s.x*W + k*cam.theta*90) % W + W) % W;
+        const y = ((s.y*H + k*cam.phi*60)   % H + H) % H;
+        const tw = (Math.sin(now*0.001 + (s.x+s.y)*50)*0.5+0.5)*0.6 + 0.2 + 0.1*L;
+        ctx.fillStyle = `rgba(255,255,255,${tw.toFixed(3)})`;
+        ctx.fillRect(x,y,1,1);
+      }
+    }
+    ctx.restore();
+  }
+
+  // Terra + terminatore orientato con sDir (approssimazione 2D)
+  function drawEarth(sDir){
     const R = projectRadius(R_EARTH);
     const c = worldToScreen(V(0,0,0));
+
+    // Ombra/terminatore: proiettiamo la direzione del sole su schermo
     if (showShadow){
-      const g = ctx.createRadialGradient(cx-0.25*R, cy-0.12*R, R*0.2, cx, cy, R*1.3);
-      g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,0.46)");
-      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(c.x,c.y,R,0,Math.PI*2); ctx.fill();
+      const s2 = worldToScreen(add(V(0,0,0), mul(sDir, R_EARTH)));
+      const vx = c.x - (s2.x - c.x), vy = c.y - (s2.y - c.y); // punto "notte" opposto al Sole
+      const dx = vx - c.x, dy = vy - c.y;
+      const shift = 0.35; // quanto spostare il centro del gradiente verso la notte
+      const gx = c.x + dx*shift, gy = c.y + dy*shift;
+
+      // penombra esterna
+      const pen = ctx.createRadialGradient(gx, gy, R*0.9, c.x, c.y, R*1.15);
+      pen.addColorStop(0, "rgba(0,0,0,0.0)");
+      pen.addColorStop(1, "rgba(0,0,0,0.18)");
+      ctx.fillStyle = pen; ctx.beginPath(); ctx.arc(c.x,c.y,R*1.15,0,Math.PI*2); ctx.fill();
+
+      // night side
+      const night = ctx.createRadialGradient(gx, gy, R*0.2, c.x, c.y, R*1.05);
+      night.addColorStop(0, "rgba(0,0,0,0.0)");
+      night.addColorStop(1, "rgba(0,0,0,0.48)");
+      ctx.fillStyle = night; ctx.beginPath(); ctx.arc(c.x,c.y,R,0,Math.PI*2); ctx.fill();
     }
+
+    // globo
     const sea = ctx.createRadialGradient(c.x-0.3*R, c.y-0.35*R, R*0.2, c.x, c.y, R*1.1);
     sea.addColorStop(0,"#2a6fdb"); sea.addColorStop(1,"#0a1d47");
     ctx.fillStyle=sea; ctx.beginPath(); ctx.arc(c.x,c.y,R,0,Math.PI*2); ctx.fill();
+
     if (showAtmo){
       const Ra = R*1.04;
-      const a = ctx.createRadialGradient(c.x,c.y,R*0.95,c.x,c.y,Ra);
-      a.addColorStop(0,"rgba(120,200,255,.05)"); a.addColorStop(1,"rgba(120,200,255,0)");
+      const a = ctx.createRadialGradient(c.x, c.y, R*0.95, c.x, c.y, Ra);
+      a.addColorStop(0, "rgba(120,200,255,.05)"); a.addColorStop(1, "rgba(120,200,255,0)");
       ctx.fillStyle=a; ctx.beginPath(); ctx.arc(c.x,c.y,Ra,0,Math.PI*2); ctx.fill();
     }
     if (showAxes){
@@ -251,6 +314,7 @@ footer{padding:20px; text-align:center; color:var(--muted)}
       ctx.stroke();
     }
   }
+
   function drawOrbitPath(points){
     if (!showOrbit || points.length<2) return;
     ctx.strokeStyle="rgba(96,165,250,.85)"; ctx.lineWidth=1.6; ctx.beginPath();
@@ -258,22 +322,25 @@ footer{padding:20px; text-align:center; color:var(--muted)}
     for(let i=1;i<points.length;i++){ s=worldToScreen(points[i]); ctx.lineTo(s.x,s.y); }
     ctx.stroke();
   }
-  function drawCubeSat(p){
+  function drawCubeSat(p, eclipsed){
     const s = worldToScreen(p);
     const size = clamp(8 + 1200/(1 + s.z + 1e-6), 2, 14);
-    ctx.fillStyle="#eaf1ff"; ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=1;
+    ctx.fillStyle = eclipsed? "rgba(234,241,255,0.6)" : "#eaf1ff";
+    ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=1;
     ctx.beginPath(); ctx.rect(s.x-size/2, s.y-size/2, size, size); ctx.fill(); ctx.stroke();
-    ctx.fillStyle="#60a5fa"; // pannelli
+    ctx.fillStyle = eclipsed? "rgba(96,165,250,0.5)" : "#60a5fa";
     ctx.fillRect(s.x - size*1.9, s.y - size*0.3, size*0.7, size*0.6);
     ctx.fillRect(s.x + size*1.2, s.y - size*0.3, size*0.7, size*0.6);
   }
 
+  // HUD
   const hud = document.getElementById('hud');
-  const updateHUD = (a,e,i,raan,argp,M0,alt,t) => {
-    hud.textContent = `t=${t.toFixed(1)}s | alt=${(alt/1000).toFixed(0)}km | a=${(a/1000).toFixed(0)}km | e=${e.toFixed(3)} | i=${inclDeg.toFixed(1)}° | Ω=${raanDeg|0}° | ω=${argpDeg|0}° | M₀=${m0Deg|0}°`;
+  const updateHUD = (a,e,alt,sd)=>{
+    // sd: frazione di luce (1=sole, 0=eclissi netta)
+    hud.textContent = `t=${t.toFixed(1)}s | alt=${(alt/1000).toFixed(0)}km | a=${(a/1000).toFixed(0)}km | e=${e.toFixed(3)} | i=${inclDeg.toFixed(1)}° | Ω=${raanDeg|0}° | ω=${argpDeg|0}° | M₀=${m0Deg|0}° | luce=${(sd*100).toFixed(0)}%`;
   };
 
-  // ==== UI bindings
+  // UI
   const el = id=>document.getElementById(id);
   const S = {
     per: el('perigee'), apo: el('apogee'), incl: el('incl'), raan: el('raan'),
@@ -298,7 +365,7 @@ footer{padding:20px; text-align:center; color:var(--muted)}
     m0Deg      = +S.m0.value;         Vals.m0.textContent  = m0Deg.toFixed(0);
     timescale  = +S.ts.value;         Vals.ts.textContent  = timescale.toFixed(1)+'×';
     trailMax   = +S.trail.value;      Vals.trail.textContent = trailMax.toFixed(0);
-    trail = []; // reset scia quando cambiano parametri
+    trail = [];
   }
   S.per.oninput=S.apo.oninput=S.incl.oninput=S.raan.oninput=S.argp.oninput=S.m0.oninput=S.ts.oninput=S.trail.oninput=syncUI;
 
@@ -311,31 +378,23 @@ footer{padding:20px; text-align:center; color:var(--muted)}
     syncUI();
   };
 
-  document.getElementById('btnPlay').onclick = ()=>running=true;
-  document.getElementById('btnPause').onclick= ()=>running=false;
-  document.getElementById('btnReset').onclick= ()=>{ t=0; trail=[]; };
+  el('btnPlay').onclick = ()=>running=true;
+  el('btnPause').onclick= ()=>running=false;
+  el('btnReset').onclick= ()=>{ t=0; trail=[]; };
 
-  // ==== Deriva elementi da UI
+  // Elementi
   function deriveElements(){
-    const rp = R_EARTH + perigeeAlt;
-    const ra = R_EARTH + apogeeAlt;
-    const a = 0.5*(rp+ra);
-    const e = (ra - rp) / (ra + rp);
-    const i = toRad(inclDeg);
-    const raan = toRad(raanDeg);
-    const argp = toRad(argpDeg);
-    const M0 = toRad(m0Deg);
-    return {a,e,i,raan,argp,M0};
+    const rp = R_EARTH + perigeeAlt, ra = R_EARTH + apogeeAlt;
+    const a = 0.5*(rp+ra), e = (ra - rp)/(ra + rp);
+    return { a, e, i:toRad(inclDeg), raan:toRad(raanDeg), argp:toRad(argpDeg), M0:toRad(m0Deg) };
   }
-
-  // Lancio (transizione) — ramp su e,i,Ω,ω,M0
   function simulateLaunch(dt, el){
     t += dt;
     const k = Math.max(0, Math.min(1, t/120));
     return elementsToState(el.a, el.e*k, el.i*k, el.raan*k, el.argp*k, el.M0*k, t);
   }
 
-  // ==== Loop
+  // Loop
   let last = performance.now();
   function loop(now){
     requestAnimationFrame(loop);
@@ -351,44 +410,30 @@ footer{padding:20px; text-align:center; color:var(--muted)}
       pos = elementsToState(el.a, el.e, el.i, el.raan, el.argp, el.M0, t);
     }
 
-    // trail
-    if (running){
-      trail.push(pos);
-      if (trail.length>trailMax) trail.shift();
-    }
+    if (running){ trail.push(pos); if (trail.length>trailMax) trail.shift(); }
+    cam.theta += 0.03*dt; cam.phi = 0.9 + 0.15*Math.sin(now*0.0005);
 
-    // camera leggera
-    cam.theta += 0.03*dt;
-    cam.phi = 0.9 + 0.15*Math.sin(now*0.0005);
+    const sDir = sunDirection(t);           // direzione Sole con stagionalità
+    const eclipsed = inUmbra(pos, sDir);    // eclissi sì/no
+    const alt = Math.hypot(pos.x,pos.y,pos.z) - R_EARTH;
 
     // draw
     ctx.clearRect(0,0,W,H);
     drawStars(now);
-    drawEarth();
+    drawEarth(sDir);
     drawOrbitPath(trail);
-    drawCubeSat(pos);
+    drawCubeSat(pos, eclipsed);
 
-    const alt = Math.hypot(pos.x,pos.y,pos.z) - R_EARTH;
-    updateHUD(el.a, el.e, el.i, el.raan, el.argp, el.M0, alt, t);
+    // fraction of light (0 in umbra, ~0.5 penombra, 1 luce)
+    const dAx = Math.sqrt(dot(pos,pos) - Math.pow(dot(pos, sDir),2));
+    const lightFrac = eclipsed ? Math.max(0, Math.min(1, (dAx - R_EARTH*0.75) / (R_EARTH*0.25))) : 1;
+    updateHUD(el.a, el.e, alt, lightFrac);
   }
   requestAnimationFrame(loop);
 
-  function drawStars(now){
-    const n=140;
-    ctx.save(); ctx.globalAlpha=0.85;
-    for(let i=0;i<n;i++){
-      const x=(i*97 % W), y=(i*233 % H);
-      const tw=(Math.sin(now*0.001+i)*0.5+0.5)*0.7+0.3;
-      ctx.fillStyle=`rgba(255,255,255,${tw.toFixed(3)})`;
-      ctx.fillRect(x,y,1,1);
-    }
-    ctx.restore();
-  }
-
-  // responsive canvas
+  // Parallax stars already defined above
   function onResize(){
-    const r=canvas.getBoundingClientRect();
-    const dpr=window.devicePixelRatio||1;
+    const r=canvas.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
     canvas.width = Math.max(640, Math.floor(r.width*dpr));
     canvas.height= Math.floor(canvas.width*9/16);
     W=canvas.width; H=canvas.height; cx=W/2; cy=H/2;
