@@ -33,15 +33,11 @@ function sync(){perigeeAlt=parseFloat(elPer.value)*1000;apogeeAlt=parseFloat(elA
 elPer.oninput=elApo.oninput=elIncl.oninput=elRAAN.oninput=elArgp.oninput=elM0.oninput=elTS.oninput=elTrail.oninput=elCdA.oninput=sync; elDrag.onchange=sync;
 function onResize(){var r=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;canvas.width=Math.max(640,Math.floor(r.width*dpr));canvas.height=Math.floor(canvas.width*9/16);W=canvas.width;H=canvas.height;cx=W/2;cy=H/2}
 window.addEventListener('resize',onResize);onResize();sync();
-var last=performance.now(); function loop(now){requestAnimationFrame(loop);var dt=(now-last)/1000;last=now;dt=Math.min(dt,.05);if(running){t+=dt*timescale;}
+var last=performance.now(); function loop(now){requestAnimationFrame(loop);var dt=(now-last)/1000;last=now;dt=Math.min(dt,.05);t+=dt*timescale;
  var e=derive(); var pos=el2sv(e.a,e.e,e.i,e.raan,e.argp,e.M0,t).r; if(running){trail.push(pos); if(trail.length>trailMax) trail.shift()}
  ctx.clearRect(0,0,W,H); drawStars(now); drawEarth(); if(showOrbit&&trail.length>1){ctx.strokeStyle="rgba(96,165,250,.85)";ctx.lineWidth=1.5;ctx.beginPath();var s=w2s(trail[0]);ctx.moveTo(s.x,s.y); for(var i=1;i<trail.length;i++){s=w2s(trail[i]);ctx.lineTo(s.x,s.y)} ctx.stroke()}
  var s=w2s(pos),R=5; ctx.fillStyle="#eaf1ff";ctx.fillRect(s.x-R,s.y-R,2*R,2*R);
  var alt=Math.sqrt(dot(pos,pos))-R_EARTH; updHUD("2D | t="+t.toFixed(1)+"s | alt="+(alt/1000).toFixed(0)+"km | a="+(e.a/1000).toFixed(0)+"km | e="+e.e.toFixed(3)+" | i="+inclDeg.toFixed(1)+"°")}
 requestAnimationFrame(loop);
-var btnPlay=document.getElementById('btnPlay'), btnPause=document.getElementById('btnPause');
-btnPlay.onclick=function(){running=true; btnPlay.classList.add('primary'); btnPause.classList.remove('primary')};
-btnPause.onclick=function(){running=false; btnPause.classList.add('primary'); btnPlay.classList.remove('primary')};
-document.getElementById('btnReset').onclick=function(){running=false; t=0; trail=[]; btnPause.classList.add('primary'); btnPlay.classList.remove('primary')};
-window.addEventListener('keydown',function(e){ if(e.code==='Space'){ e.preventDefault(); running=!running; if(running){btnPlay.classList.add('primary'); btnPause.classList.remove('primary')} else {btnPause.classList.add('primary'); btnPlay.classList.remove('primary')} } });
+document.getElementById('btnPlay').onclick=function(){running=true}; document.getElementById('btnPause').onclick=function(){running=false}; document.getElementById('btnReset').onclick=function(){t=0;trail=[]};
 })();

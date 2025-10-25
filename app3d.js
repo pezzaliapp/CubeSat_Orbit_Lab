@@ -156,10 +156,7 @@ async function init3D(THREE){
     else if (v==='gto'){ el.per.value=250; el.apo.value=35786; el.incl.value=27; el.raan.value=20; el.argp.value=180; el.m0.value=0; el.ts.value=60; el.trail.value=4000; }
     sync();
   });
-  btnPlay.onclick=()=>{ running=true; btnPlay.classList.add('primary'); btnPause.classList.remove('primary'); };
-btnPause.onclick=()=>{ running=false; btnPause.classList.add('primary'); btnPlay.classList.remove('primary'); };
-btnReset.onclick=()=>{ running=false; t=0; trail=[]; logSamples=[]; btnPause.classList.add('primary'); btnPlay.classList.remove('primary'); };
-window.addEventListener('keydown',(e)=>{ if(e.code==='Space'){ e.preventDefault(); running=!running; if(running){btnPlay.classList.add('primary'); btnPause.classList.remove('primary');} else {btnPause.classList.add('primary'); btnPlay.classList.remove('primary');} } });
+  btnPlay.onclick=()=>running=true; btnPause.onclick=()=>running=false; btnReset.onclick=()=>{t=0;trail=[];logSamples=[]};
   btnExport.onclick=()=>{
     if (logSamples.length===0){ alert('Nessun dato da esportare. Premi PLAY.'); return; }
     const header='t_s,x_m,y_m,z_m,alt_km\n'; const lines=[header, ...logSamples.map(r=>r.join(','))];
@@ -174,7 +171,7 @@ window.addEventListener('keydown',(e)=>{ if(e.code==='Space'){ e.preventDefault(
   function animate(){
     requestAnimationFrame(animate);
     const now=performance.now()/1000, dt=Math.min(0.05, now-last); last=now;
-    if (running) { t += dt*timescale; }
+    t += dt*timescale;
 
     // Sun rotation & lighting
     sunLight.position.set(Math.cos(now*0.05), 0.2, Math.sin(now*0.05)).normalize();
