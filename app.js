@@ -309,8 +309,8 @@
     syncUI();
   };
 
-  document.getElementById('btnPlay').onclick = function(){ running = true; };
-  document.getElementById('btnPause').onclick= function(){ running = false; };
+  document.getElementById('btnPlay').onclick = function(){ running = true; this.classList.add('primary'); document.getElementById('btnPause').classList.remove('primary'); };
+  document.getElementById('btnPause').onclick= function(){ running = false; this.classList.add('primary'); document.getElementById('btnPlay').classList.remove('primary'); };
   document.getElementById('btnReset').onclick= function(){ t=0; trail=[]; logSamples=[]; };
   btnExport.onclick = function(){ exportCSV(); };
 
@@ -318,7 +318,14 @@
   window.addEventListener('beforeinstallprompt', function(e){
     e.preventDefault(); deferredPrompt=e; installBtn.hidden=false;
   });
-  installBtn.onclick = function(){ if (deferredPrompt){ deferredPrompt.prompt(); } };
+  
+  window.addEventListener('keydown', function(e){
+    if (e.code === 'Space'){ e.preventDefault(); running = !running;
+      if (running){ document.getElementById('btnPlay').classList.add('primary'); document.getElementById('btnPause').classList.remove('primary'); }
+      else { document.getElementById('btnPause').classList.add('primary'); document.getElementById('btnPlay').classList.remove('primary'); }
+    }
+  });
+installBtn.onclick = function(){ if (deferredPrompt){ deferredPrompt.prompt(); } };
 
   function onResize(){
     var r = canvas.getBoundingClientRect();
@@ -369,7 +376,7 @@
 
     if (document.getElementById('scenario').value==='launch' && !useDrag){
       // Lancio semplificato in Keplero (transizione)
-      t += dt*timescale;
+      if (running) { t += dt*timescale; }
       var k = clamp(t/120, 0, 1);
       var a = elems.a;
       var e = elems.e * k;
@@ -381,13 +388,14 @@
       pos = sv.r; vel = sv.v; spd = len(vel);
     } else if (!useDrag){
       // Keplero puro
-      t += dt*timescale;
+      if (running) { t += dt*timescale; }
       var sv2 = elementsToStateVel(elems.a, elems.e, elems.i, elems.raan, elems.argp, elems.M0, t);
       pos = sv2.r; vel = sv2.v; spd = len(vel);
     } else {
       // Integrazione numerica con drag (RK2 semplice)
       var substeps = Math.max(1, Math.floor(timescale)); // più veloce → più substeps
       var hdt = (dt*timescale)/substeps;
+      if (running) {
       for (var s=0; s<substeps; s++){
         var a1 = accel(dyn.r, dyn.v);
         var rv = add(dyn.r, mul(dyn.v, hdt*0.5));
@@ -397,6 +405,7 @@
         dyn.v = add(dyn.v, mul(a2, hdt));
         t += hdt;
       }
+      } // end running guard
       pos = dyn.r; vel = dyn.v; spd = len(vel);
     }
 
