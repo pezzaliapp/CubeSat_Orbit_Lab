@@ -2,26 +2,40 @@
 <html lang="it">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>CubeSat Orbit Lab — SAFE 2D</title>
-  <meta name="description" content="Versione 2D standalone che funziona anche aprendo direttamente il file.">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>CubeSat Orbit Lab — pezzaliAPP</title>
+  <meta name="theme-color" content="#0b1022">
+  <meta name="description" content="Simulatore divulgativo di lancio e orbite di un CubeSat. 3D Three.js + fallback Canvas, PWA offline.">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
 <header class="hero">
-  <div class="brand"><h1>CubeSat Orbit Lab — SAFE 2D</h1></div>
+  <div class="brand">
+    <img src="icons/icon-192.png" alt="Icona" class="logo">
+    <div class="titles">
+      <h1>CubeSat Orbit Lab</h1>
+      <p class="tag">Three.js 3D + Canvas fallback · Keplero + Drag · PWA</p>
+    </div>
+  </div>
   <nav>
     <button id="btnPlay" class="primary">PLAY</button>
     <button id="btnPause" class="ghost">PAUSA</button>
     <button id="btnReset" class="ghost">RESET</button>
     <button id="btnExport" class="ghost">Export CSV</button>
+    <button id="btnInstall" class="ghost install" hidden>INSTALLA</button>
   </nav>
 </header>
 
 <main>
   <section class="canvas-wrap">
-    <canvas id="view2d" width="960" height="540" aria-label="Simulazione 2D orbita CubeSat"></canvas>
+    <!-- 3D -->
+    <canvas id="view3d" width="960" height="540" aria-label="Simulazione 3D orbita CubeSat"></canvas>
+    <!-- 2D fallback -->
+    <canvas id="view2d" width="960" height="540" aria-label="Simulazione 2D orbita CubeSat" hidden></canvas>
     <div class="hud" id="hud"></div>
+    <div class="mode-badge" id="modeBadge">3D</div>
   </section>
 
   <section class="controls">
@@ -34,6 +48,12 @@
           <option value="gto">GTO semplificata</option>
         </select>
       </label>
+      <label class="toggle-inline"><input type="checkbox" id="drag"> Drag atmosferico (LEO)</label>
+      <label>Cd·A/m (m²/kg)
+        <input id="cda" type="range" min="0.001" max="0.2" step="0.001" value="0.02">
+        <span id="cdaVal">0.020</span>
+      </label>
+      <label class="toggle-inline"><input type="checkbox" id="toggle3d" checked> Modalità 3D</label>
     </div>
     <div class="group">
       <label>Altitudine Perigeo (km)
@@ -73,11 +93,33 @@
         <span id="trailVal">800</span>
       </label>
     </div>
+    <div class="group toggles">
+      <label><input type="checkbox" id="showAxes" checked> Assi</label>
+      <label><input type="checkbox" id="showOrbit" checked> Orbita</label>
+      <label><input type="checkbox" id="atmo" checked> Atmosfera</label>
+      <label><input type="checkbox" id="shadow" checked> Ombra Terra</label>
+    </div>
+  </section>
+
+  <section class="about">
+    <h2>Cos'è</h2>
+    <p><strong>CubeSat Orbit Lab</strong> in versione <b>3D Three.js</b>, con fallback automatico alla versione <b>2D Canvas</b> se necessario.
+    Fisica Keplero+drag, export CSV, PWA offline.</p>
   </section>
 </main>
 
-<footer><p>© 2025 pezzaliAPP — SAFE 2D, nessuna dipendenza esterna.</p></footer>
+<footer>
+  <p>© 2025 pezzaliAPP — MIT License · Codice sorgente locale in questa cartella.</p>
+</footer>
 
-<script src="app2d_safe.js"></script>
+<script type="module" src="app3d.js"></script>
+<script nomodule src="app2d.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('service-worker.js');
+    });
+  }
+</script>
 </body>
 </html>
