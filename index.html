@@ -1,125 +1,106 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <title>CubeSat Orbit Lab — v3.2 SAFE</title>
-  <meta name="theme-color" content="#0b1022">
-  <meta name="description" content="Simulatore divulgativo CubeSat: Keplero + Drag, ground‑track, preset. Funziona anche offline.">
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>CubeSat Orbit Lab — Golden</title>
+<meta name="theme-color" content="#0b1022">
+<link rel="preconnect" href="https://unpkg.com">
+<style>
+:root{--bg:#050a1e;--bg2:#0a1233;--ink:#eaf1ff;--muted:#9fb0d8;--line:#1b2a66;--accent:#2dd4bf}
+*{box-sizing:border-box} html,body{height:100%} body{margin:0;font:15px/1.6 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--ink);
+background:linear-gradient(180deg,var(--bg),var(--bg2))}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);background:#081133cc}
+.controls-bar{display:flex;gap:8px;flex-wrap:wrap}
+button{border:1px solid var(--line);background:#0f1837;color:var(--ink);padding:8px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+button.primary{background:linear-gradient(180deg,#24d3ae,#16a98d);border:none;color:#041a14}
+.canvas-wrap{position:relative;max-width:1200px;margin:12px auto;border:1px solid var(--line);border-radius:16px;background:#060b1f;overflow:hidden}
+#three-root{width:100%;height:60vh;min-height:420px}
+#hud{position:absolute;left:10px;bottom:8px;font:12px ui-monospace;color:#cfe2ff;background:#0a0f2acc;padding:6px 8px;border-radius:8px;border:1px solid #1a2355}
+#miniMap{position:absolute;right:10px;top:10px;border:1px solid var(--line);background:#020611;border-radius:8px}
+#splash{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#eaf1ff;font-weight:800;font-size:28px;background:#050a1ef0;opacity:1;transition:opacity 1s}
+#splash.hide{opacity:0;pointer-events:none}
+.controls{max-width:1200px;margin:12px auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.group{background:linear-gradient(180deg,#0f1742,#0a102f);border:1px solid var(--line);border-radius:14px;padding:12px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+.row{display:flex;gap:8px;align-items:center}
+.value{min-width:32px;text-align:right}
+</style>
+
+<!-- Three.js (CDN). Nessun OrbitControls necessario in questa golden build -->
+<script defer src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+<script defer src="app.js"></script>
 </head>
 <body>
-<header class="hero">
-  <div class="brand">
-    <img src="icons/icon-192.png" alt="Icona" class="logo">
-    <div class="titles">
-      <h1>CubeSat Orbit Lab v3.2 SAFE</h1>
-      <p class="tag">Canvas 2D quasi‑3D · Keplero + Drag · Ground‑track · PWA Offline</p>
-    </div>
-  </div>
+
+<header>
+  <div><strong>CubeSat Orbit Lab</strong><div style="color:#9fb0d8;font-size:12px">Three.js Edition · Keplero (+ Drag opz.)</div></div>
   <nav class="controls-bar">
-    <button id="btnPlay" class="primary">PLAY</button>
-    <button id="btnPause" class="ghost">PAUSA</button>
-    <button id="btnStep" class="ghost">STEP Δt</button>
-    <button id="btnReset" class="ghost">RESET</button>
-    <button id="btnExport" class="ghost">Export CSV</button>
-    <button id="btnInstall" class="ghost install" hidden>INSTALLA</button>
+    <button id="btnPlay"  class="primary">PLAY</button>
+    <button id="btnPause">PAUSA</button>
+    <button id="btnStep">STEP Δt</button>
+    <button id="btnReset">RESET</button>
+    <button id="btnExport">Export CSV</button>
+    <button id="btnCamOrbit">Ruota Camera</button>
   </nav>
 </header>
 
-<main>
-  <section class="canvas-wrap">
-    <canvas id="view" width="1280" height="720" aria-label="Simulazione orbita CubeSat"></canvas>
-    <div class="hud" id="hud"></div>
-    <canvas id="miniMap" width="280" height="140" class="minimap" aria-label="Ground-track"></canvas>
-  </section>
+<section class="canvas-wrap">
+  <div id="three-root"></div>
+  <canvas id="miniMap" width="280" height="140"></canvas>
+  <div id="hud"></div>
+  <div id="splash">CubeSat Orbit Lab</div>
+</section>
 
-  <section class="controls">
-    <div class="group">
-      <label>Scenario
-        <select id="scenario">
-          <option value="launch">Lancio → Inserimento in orbita</option>
-          <option value="leo" selected>LEO Circolare 400 km</option>
-          <option value="ellipse">Ellittica 300 × 800 km</option>
-          <option value="gto">GTO semplificata</option>
-        </select>
-      </label>
-      <label class="toggle-inline"><input type="checkbox" id="drag"> Drag atmosferico (LEO)</label>
-      <label>Cd·A/m (m²/kg)
-        <input id="cda" type="range" min="0.001" max="0.2" step="0.001" value="0.02">
-        <span id="cdaVal">0.020</span>
-      </label>
-    </div>
-    <div class="group">
-      <label>Altitudine Perigeo (km)
-        <input id="perigee" type="range" min="180" max="2000" step="10" value="400">
-        <span id="perigeeVal">400</span>
-      </label>
-      <label>Altitudine Apogeo (km)
-        <input id="apogee" type="range" min="180" max="36000" step="10" value="400">
-        <span id="apogeeVal">400</span>
-      </label>
-    </div>
-    <div class="group">
-      <label>Inclinazione (°)
-        <input id="incl" type="range" min="0" max="98" step="1" value="51">
-        <span id="inclVal">51</span>
-      </label>
-      <label>RAAN Ω (°)
-        <input id="raan" type="range" min="0" max="360" step="1" value="0">
-        <span id="raanVal">0</span>
-      </label>
-      <label>Argomento del perigeo ω (°)
-        <input id="argp" type="range" min="0" max="360" step="1" value="0">
-        <span id="argpVal">0</span>
-      </label>
-      <label>Anomalia media M₀ (°)
-        <input id="m0" type="range" min="0" max="360" step="1" value="0">
-        <span id="m0Val">0</span>
-      </label>
-    </div>
-    <div class="group">
-      <label>Velocità Simulazione
-        <input id="timescale" type="range" min="0.1" max="240" step="0.1" value="5">
-        <span id="timescaleVal">5×</span>
-      </label>
-      <label>Trail
-        <input id="trail" type="range" min="0" max="10000" step="20" value="1200">
-        <span id="trailVal">1200</span>
-      </label>
-    </div>
-    <div class="group toggles">
-      <label><input type="checkbox" id="showAxes" checked> Assi</label>
-      <label><input type="checkbox" id="showOrbit" checked> Orbita</label>
-      <label><input type="checkbox" id="atmo" checked> Atmosfera</label>
-      <label><input type="checkbox" id="shadow" checked> Ombra Terra</label>
-      <label><input type="checkbox" id="legend" checked> Legenda</label>
-    </div>
-    <div class="group">
-      <div class="row">
-        <button id="btnSavePreset">Salva preset</button>
-        <button id="btnLoadPreset">Carica preset</button>
-        <select id="presetList"></select>
-        <button id="btnDeletePreset">Elimina</button>
-      </div>
-      <small class="muted">Barra spaziatrice = Play/Pausa · +/- = velocità · 0 = Reset cam · 1..5 toggles.</small>
-    </div>
-  </section>
-</main>
+<section class="controls">
+  <div class="group">
+    <label>Scenario
+      <select id="scenario">
+        <option value="launch">Lancio → Inserimento</option>
+        <option value="leo" selected>LEO Circolare 400 km</option>
+        <option value="ellipse">Ellittica 300 × 800 km</option>
+        <option value="gto">GTO semplificata</option>
+      </select>
+    </label>
+    <label class="row"><input type="checkbox" id="drag"> Drag atmosferico (LEO)</label>
+    <label>Cd·A/m (m²/kg)
+      <div class="row"><input id="cda" type="range" min="0.001" max="0.2" step="0.001" value="0.02"><span id="cdaVal" class="value">0.020</span></div>
+    </label>
+  </div>
 
-<footer>
-  <p>© 2025 pezzaliAPP — MIT License.</p>
-</footer>
+  <div class="group">
+    <label>Altitudine Perigeo (km)
+      <div class="row"><input id="perigee" type="range" min="180" max="2000" step="10" value="400"><span id="perigeeVal" class="value">400</span></div>
+    </label>
+    <label>Altitudine Apogeo (km)
+      <div class="row"><input id="apogee" type="range" min="180" max="36000" step="10" value="400"><span id="apogeeVal" class="value">400</span></div>
+    </label>
+  </div>
 
-<script src="app.js"></script>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('service-worker.js');
-    });
-  }
-</script>
+  <div class="group">
+    <label>Inclinazione i (°)
+      <div class="row"><input id="incl" type="range" min="0" max="98" step="1" value="51"><span id="inclVal" class="value">51</span></div>
+    </label>
+    <label>RAAN Ω (°)
+      <div class="row"><input id="raan" type="range" min="0" max="360" step="1" value="0"><span id="raanVal" class="value">0</span></div>
+    </label>
+    <label>Argomento del perigeo ω (°)
+      <div class="row"><input id="argp" type="range" min="0" max="360" step="1" value="0"><span id="argpVal" class="value">0</span></div>
+    </label>
+    <label>Anomalia media M₀ (°)
+      <div class="row"><input id="m0" type="range" min="0" max="360" step="1" value="0"><span id="m0Val" class="value">0</span></div>
+    </label>
+  </div>
+
+  <div class="group">
+    <label>Velocità Simulazione
+      <div class="row"><input id="timescale" type="range" min="0.1" max="240" step="0.1" value="5"><span id="timescaleVal" class="value">5×</span></div>
+    </label>
+    <label>Trail
+      <div class="row"><input id="trail" type="range" min="0" max="10000" step="20" value="1200"><span id="trailVal" class="value">1200</span></div>
+    </label>
+  </div>
+</section>
+
 </body>
 </html>
