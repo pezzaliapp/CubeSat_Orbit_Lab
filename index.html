@@ -1,106 +1,129 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>CubeSat Orbit Lab — Golden</title>
-<meta name="theme-color" content="#0b1022">
-<link rel="preconnect" href="https://unpkg.com">
-<style>
-:root{--bg:#050a1e;--bg2:#0a1233;--ink:#eaf1ff;--muted:#9fb0d8;--line:#1b2a66;--accent:#2dd4bf}
-*{box-sizing:border-box} html,body{height:100%} body{margin:0;font:15px/1.6 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--ink);
-background:linear-gradient(180deg,var(--bg),var(--bg2))}
-header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);background:#081133cc}
-.controls-bar{display:flex;gap:8px;flex-wrap:wrap}
-button{border:1px solid var(--line);background:#0f1837;color:var(--ink);padding:8px 14px;border-radius:10px;font-weight:700;cursor:pointer}
-button.primary{background:linear-gradient(180deg,#24d3ae,#16a98d);border:none;color:#041a14}
-.canvas-wrap{position:relative;max-width:1200px;margin:12px auto;border:1px solid var(--line);border-radius:16px;background:#060b1f;overflow:hidden}
-#three-root{width:100%;height:60vh;min-height:420px}
-#hud{position:absolute;left:10px;bottom:8px;font:12px ui-monospace;color:#cfe2ff;background:#0a0f2acc;padding:6px 8px;border-radius:8px;border:1px solid #1a2355}
-#miniMap{position:absolute;right:10px;top:10px;border:1px solid var(--line);background:#020611;border-radius:8px}
-#splash{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#eaf1ff;font-weight:800;font-size:28px;background:#050a1ef0;opacity:1;transition:opacity 1s}
-#splash.hide{opacity:0;pointer-events:none}
-.controls{max-width:1200px;margin:12px auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-.group{background:linear-gradient(180deg,#0f1742,#0a102f);border:1px solid var(--line);border-radius:14px;padding:12px}
-label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
-.row{display:flex;gap:8px;align-items:center}
-.value{min-width:32px;text-align:right}
-</style>
-
-<!-- Three.js (CDN). Nessun OrbitControls necessario in questa golden build -->
-<script defer src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
-<script defer src="app.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>CubeSat Orbit Lab — pezzaliAPP</title>
+  <meta name="theme-color" content="#0b1022">
+  <meta name="description" content="Simulatore divulgativo di lancio e orbite di un CubeSat. Canvas 2D con proiezione 3D, PWA offline.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
-
 <header>
-  <div><strong>CubeSat Orbit Lab</strong><div style="color:#9fb0d8;font-size:12px">Three.js Edition · Keplero (+ Drag opz.)</div></div>
-  <nav class="controls-bar">
-    <button id="btnPlay"  class="primary">PLAY</button>
-    <button id="btnPause">PAUSA</button>
-    <button id="btnStep">STEP Δt</button>
-    <button id="btnReset">RESET</button>
-    <button id="btnExport">Export CSV</button>
-    <button id="btnCamOrbit">Ruota Camera</button>
+  <div class="brand">
+    <img src="icons/icon-192.png" alt="Icona" class="logo">
+    <h1>CubeSat Orbit Lab</h1>
+  </div>
+  <nav>
+    <button id="btnPlay" class="primary">PLAY</button>
+    <button id="btnPause" class="ghost">PAUSA</button>
+    <button id="btnReset" class="ghost">RESET</button>
+    <button id="btnExport" class="ghost">EXPORT CSV</button>
+    <button id="btnInstall" class="ghost install" hidden>INSTALLA</button>
   </nav>
 </header>
 
-<section class="canvas-wrap">
-  <div id="three-root"></div>
-  <canvas id="miniMap" width="280" height="140"></canvas>
-  <div id="hud"></div>
-  <div id="splash">CubeSat Orbit Lab</div>
-</section>
-
-<section class="controls">
-  <div class="group">
-    <label>Scenario
-      <select id="scenario">
-        <option value="launch">Lancio → Inserimento</option>
-        <option value="leo" selected>LEO Circolare 400 km</option>
-        <option value="ellipse">Ellittica 300 × 800 km</option>
-        <option value="gto">GTO semplificata</option>
-      </select>
-    </label>
-    <label class="row"><input type="checkbox" id="drag"> Drag atmosferico (LEO)</label>
-    <label>Cd·A/m (m²/kg)
-      <div class="row"><input id="cda" type="range" min="0.001" max="0.2" step="0.001" value="0.02"><span id="cdaVal" class="value">0.020</span></div>
-    </label>
-  </div>
-
-  <div class="group">
-    <label>Altitudine Perigeo (km)
-      <div class="row"><input id="perigee" type="range" min="180" max="2000" step="10" value="400"><span id="perigeeVal" class="value">400</span></div>
-    </label>
-    <label>Altitudine Apogeo (km)
-      <div class="row"><input id="apogee" type="range" min="180" max="36000" step="10" value="400"><span id="apogeeVal" class="value">400</span></div>
-    </label>
-  </div>
-
-  <div class="group">
-    <label>Inclinazione i (°)
-      <div class="row"><input id="incl" type="range" min="0" max="98" step="1" value="51"><span id="inclVal" class="value">51</span></div>
-    </label>
-    <label>RAAN Ω (°)
-      <div class="row"><input id="raan" type="range" min="0" max="360" step="1" value="0"><span id="raanVal" class="value">0</span></div>
-    </label>
-    <label>Argomento del perigeo ω (°)
-      <div class="row"><input id="argp" type="range" min="0" max="360" step="1" value="0"><span id="argpVal" class="value">0</span></div>
-    </label>
-    <label>Anomalia media M₀ (°)
-      <div class="row"><input id="m0" type="range" min="0" max="360" step="1" value="0"><span id="m0Val" class="value">0</span></div>
-    </label>
-  </div>
-
-  <div class="group">
-    <label>Velocità Simulazione
-      <div class="row"><input id="timescale" type="range" min="0.1" max="240" step="0.1" value="5"><span id="timescaleVal" class="value">5×</span></div>
-    </label>
-    <label>Trail
-      <div class="row"><input id="trail" type="range" min="0" max="10000" step="20" value="1200"><span id="trailVal" class="value">1200</span></div>
-    </label>
+<section class="hero">
+  <div class="hero-inner">
+    <h2>Dal lancio alla LEO: l'orbita, spiegata bene.</h2>
+    <p>Canvas 2D con proiezione 3D, parametri orbitali reali e fisica semplificata. PWA, offline.</p>
+    <div class="cta">
+      <button id="heroPlay" class="primary">▶ Avvia simulazione</button>
+    </div>
   </div>
 </section>
 
+<main>
+  <section class="canvas-wrap">
+    <canvas id="view" width="960" height="540" aria-label="Simulazione orbita CubeSat"></canvas>
+    <div class="hud" id="hud"></div>
+  </section>
+
+  <section class="controls">
+    <div class="group">
+      <label>Scenario
+        <select id="scenario">
+          <option value="launch">Lancio → Inserimento in orbita</option>
+          <option value="leo">LEO Circolare 400 km</option>
+          <option value="ellipse">Ellittica 300 × 800 km</option>
+          <option value="gto">GTO semplificata</option>
+        </select>
+      </label>
+    </div>
+    <div class="group">
+      <label>Altitudine Perigeo (km)
+        <input id="perigee" type="range" min="180" max="2000" step="10" value="400">
+        <span id="perigeeVal">400</span>
+      </label>
+      <label>Altitudine Apogeo (km)
+        <input id="apogee" type="range" min="180" max="36000" step="10" value="400">
+        <span id="apogeeVal">400</span>
+      </label>
+    </div>
+    <div class="group">
+      <label>Inclinazione (°)
+        <input id="incl" type="range" min="0" max="98" step="1" value="51">
+        <span id="inclVal">51</span>
+      </label>
+      <label>RAAN Ω (°)
+        <input id="raan" type="range" min="0" max="360" step="1" value="0">
+        <span id="raanVal">0</span>
+      </label>
+      <label>Argomento del perigeo ω (°)
+        <input id="argp" type="range" min="0" max="360" step="1" value="0">
+        <span id="argpVal">0</span>
+      </label>
+      <label>Anomalia media M₀ (°)
+        <input id="m0" type="range" min="0" max="360" step="1" value="0">
+        <span id="m0Val">0</span>
+      </label>
+    </div>
+    <div class="group">
+      <label>Velocità Simulazione
+        <input id="timescale" type="range" min="0.1" max="120" step="0.1" value="5">
+        <span id="timescaleVal">5×</span>
+      </label>
+      <label>Trail
+        <input id="trail" type="range" min="0" max="3000" step="10" value="800">
+        <span id="trailVal">800</span>
+      </label>
+    </div>
+    <div class="group">
+      <label><input type="checkbox" id="drag" checked> Drag atmosferico (LEO)</label>
+      <label>BC (Cd·A/m) — kg⁻¹
+        <input id="bc" type="range" min="0.0005" max="0.02" step="0.0005" value="0.005">
+        <span id="bcVal">0.0050</span>
+      </label>
+    </div>
+    <div class="group toggles">
+      <label><input type="checkbox" id="showAxes" checked> Assi</label>
+      <label><input type="checkbox" id="showOrbit" checked> Orbita</label>
+      <label><input type="checkbox" id="atmo" checked> Atmosfera</label>
+      <label><input type="checkbox" id="shadow" checked> Ombra Terra</label>
+    </div>
+  </section>
+
+  <section class="about">
+    <h2>Cos'è</h2>
+    <p><strong>CubeSat Orbit Lab</strong> è un gioco scientifico divulgativo che mostra come un <em>CubeSat</em> viene inserito in orbita e come si muove attorno alla Terra.
+       L'animazione usa un canvas 2D con proiezione prospettica per un effetto "quasi 3D" leggero e portabile.</p>
+    <p>Scritta in JavaScript puro, funziona offline come <strong>Progressive Web App</strong> e non invia dati a server esterni.</p>
+  </section>
+</main>
+
+<footer>
+  <p>© 2025 pezzaliAPP — MIT License · Codice sorgente locale in questa cartella.</p>
+</footer>
+
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('service-worker.js');
+    });
+  }
+</script>
 </body>
 </html>
