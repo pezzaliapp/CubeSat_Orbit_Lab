@@ -1,39 +1,77 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <title>CubeSat Orbit Lab — pezzaliAPP</title>
-  <meta name="theme-color" content="#0b1022">
-  <meta name="description" content="Simulatore divulgativo di lancio e orbite di un CubeSat. Canvas 2D con proiezione 3D, PWA offline.">
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CubeSat Orbit Lab — Standalone</title>
+<style>
+:root{
+  --bg:#050a1e; --bg2:#0a1233; --ink:#eaf1ff; --muted:#99add6;
+  --line:#1b2a66; --accent:#8b5cf6; --glow:#2dd4bf;
+}
+*{box-sizing:border-box} html,body{height:100%}
+body{
+  margin:0; font:15px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  color:var(--ink);
+  background: radial-gradient(1200px 600px at 50% -20%, #121b46 15%, transparent 60%),
+              linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+}
+header{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:12px 10px; border-bottom:1px solid var(--line);
+  position:sticky; top:0; background:#081133cc; backdrop-filter:blur(8px); z-index:10;
+}
+header::after{
+  content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px;
+  background:linear-gradient(90deg, transparent, var(--accent), var(--glow), transparent);
+  filter:blur(.6px); opacity:.8; animation:flow 6s linear infinite;
+}
+@keyframes flow{0%{background-position:-200px 0}100%{background-position:200px 0}}
+h1{font-size:16px; margin:0}
+nav button{
+  border:1px solid var(--line); background:#0f1837; color:var(--ink);
+  padding:8px 12px; border-radius:12px; cursor:pointer; font-weight:700;
+  transition:transform .12s, box-shadow .2s, background .3s, border-color .2s;
+  margin-left:6px;
+}
+nav button.primary{background:linear-gradient(180deg,#24d3ae,#1fb58f); color:#051813; border:none}
+nav button.primary:hover{transform:translateY(-1px); box-shadow:0 10px 24px rgba(33,200,166,.25)}
+nav button.ghost:hover{border-color:#3a4aa0; background:#111d47}
+
+main{max-width:1100px; margin:0 auto; padding:14px}
+.canvas-wrap{
+  position:relative; border:1px solid var(--line); border-radius:18px; overflow:hidden;
+  background: radial-gradient(900px 500px at 50% 10%, #0d1433 10%, #0a0f2a 70%);
+  box-shadow:0 30px 60px rgba(0,0,0,.35), 0 0 0 1px #0c183f inset;
+}
+canvas{display:block; width:100%; height:auto}
+.hud{
+  position:absolute; left:10px; top:10px; font:12px/1.2 ui-monospace, Menlo, Consolas, monospace;
+  color:#cfe2ff; text-shadow:0 1px 0 #000;
+  background:#0a0f2acc; padding:8px 10px; border-radius:10px; border:1px solid #1a2355;
+}
+.controls{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:14px; margin-top:14px;
+}
+.controls .group{background:linear-gradient(180deg,#0f1742,#0a102f); border:1px solid var(--line); border-radius:14px; padding:12px}
+.controls label{display:block; font-size:13px; color:var(--muted); margin-bottom:8px}
+.controls input[type=range]{width:100%}
+.controls select, .controls input[type=range]{margin-top:6px}
+.controls .toggles{display:flex; gap:16px; flex-wrap:wrap}
+footer{padding:20px; text-align:center; color:var(--muted)}
+.small{font-size:12px; color:var(--muted)}
+</style>
 </head>
 <body>
 <header>
-  <div class="brand">
-    <img src="icons/icon-192.png" alt="Icona" class="logo">
-    <h1>CubeSat Orbit Lab</h1>
-  </div>
+  <h1>CubeSat Orbit Lab</h1>
   <nav>
     <button id="btnPlay" class="primary">PLAY</button>
     <button id="btnPause" class="ghost">PAUSA</button>
     <button id="btnReset" class="ghost">RESET</button>
-    <button id="btnExport" class="ghost">EXPORT CSV</button>
-    <button id="btnInstall" class="ghost install" hidden>INSTALLA</button>
   </nav>
 </header>
-
-<section class="hero">
-  <div class="hero-inner">
-    <h2>Dal lancio alla LEO: l'orbita, spiegata bene.</h2>
-    <p>Canvas 2D con proiezione 3D, parametri orbitali reali e fisica semplificata. PWA, offline.</p>
-    <div class="cta">
-      <button id="heroPlay" class="primary">▶ Avvia simulazione</button>
-    </div>
-  </div>
-</section>
 
 <main>
   <section class="canvas-wrap">
@@ -52,6 +90,7 @@
         </select>
       </label>
     </div>
+
     <div class="group">
       <label>Altitudine Perigeo (km)
         <input id="perigee" type="range" min="180" max="2000" step="10" value="400">
@@ -62,8 +101,9 @@
         <span id="apogeeVal">400</span>
       </label>
     </div>
+
     <div class="group">
-      <label>Inclinazione (°)
+      <label>Inclinazione i (°)
         <input id="incl" type="range" min="0" max="98" step="1" value="51">
         <span id="inclVal">51</span>
       </label>
@@ -80,23 +120,18 @@
         <span id="m0Val">0</span>
       </label>
     </div>
+
     <div class="group">
-      <label>Velocità Simulazione
+      <label>Velocità simulazione
         <input id="timescale" type="range" min="0.1" max="120" step="0.1" value="5">
         <span id="timescaleVal">5×</span>
       </label>
       <label>Trail
-        <input id="trail" type="range" min="0" max="3000" step="10" value="800">
-        <span id="trailVal">800</span>
+        <input id="trail" type="range" min="0" max="2000" step="10" value="600">
+        <span id="trailVal">600</span>
       </label>
     </div>
-    <div class="group">
-      <label><input type="checkbox" id="drag" checked> Drag atmosferico (LEO)</label>
-      <label>BC (Cd·A/m) — kg⁻¹
-        <input id="bc" type="range" min="0.0005" max="0.02" step="0.0005" value="0.005">
-        <span id="bcVal">0.0050</span>
-      </label>
-    </div>
+
     <div class="group toggles">
       <label><input type="checkbox" id="showAxes" checked> Assi</label>
       <label><input type="checkbox" id="showOrbit" checked> Orbita</label>
@@ -105,25 +140,263 @@
     </div>
   </section>
 
-  <section class="about">
-    <h2>Cos'è</h2>
-    <p><strong>CubeSat Orbit Lab</strong> è un gioco scientifico divulgativo che mostra come un <em>CubeSat</em> viene inserito in orbita e come si muove attorno alla Terra.
-       L'animazione usa un canvas 2D con proiezione prospettica per un effetto "quasi 3D" leggero e portabile.</p>
-    <p>Scritta in JavaScript puro, funziona offline come <strong>Progressive Web App</strong> e non invia dati a server esterni.</p>
-  </section>
+  <p class="small">Versione standalone minima: nessun service worker, nessun manifest, nessuna dipendenza. Ideal per test e GitHub Pages.</p>
 </main>
 
-<footer>
-  <p>© 2025 pezzaliAPP — MIT License · Codice sorgente locale in questa cartella.</p>
-</footer>
+<footer>© 2025 — MIT</footer>
 
-<script src="app.js"></script>
 <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('service-worker.js');
-    });
+(function(){
+  'use strict';
+  // ==== Costanti fisiche (semplificate)
+  const R_EARTH = 6371e3;            // raggio Terra [m]
+  const MU = 3.986004418e14;         // mu Terra [m^3/s^2]
+
+  // ==== Canvas / stato base
+  const canvas = document.getElementById('view');
+  const ctx = canvas.getContext('2d');
+  let W = canvas.width, H = canvas.height, cx = W/2, cy = H/2;
+
+  let running = false;
+  let t = 0;                         // tempo simulazione [s]
+  let timescale = 5;
+  let trailMax = 600;
+  let trail = [];
+
+  // Parametri orbitale (da UI)
+  let perigeeAlt = 400e3, apogeeAlt = 400e3;
+  let inclDeg = 51, raanDeg = 0, argpDeg = 0, m0Deg = 0;
+
+  let showAxes = true, showOrbit = true, showAtmo = true, showShadow = true;
+
+  // Camera orbitante per effetto 3D
+  const cam = { r: 2.8*R_EARTH, theta:-0.8, phi:0.9, fov:900, target:{x:0,y:0,z:0} };
+
+  // ==== Utilità
+  const clamp=(v,min,max)=>v<min?min:(v>max?max:v);
+  const toRad=d=>d*Math.PI/180;
+  const V=(x,y,z)=>({x,y,z});
+  const sub=(a,b)=>V(a.x-b.x,a.y-b.y,a.z-b.z);
+  const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+  const mul=(a,s)=>V(a.x*s,a.y*s,a.z*s);
+  const nrm=a=>{const n=Math.hypot(a.x,a.y,a.z);return n?mul(a,1/n):V(0,0,0);};
+  const crs=(a,b)=>V(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x);
+  function sph(r,th,ph){ return V(r*Math.cos(ph)*Math.cos(th), r*Math.sin(ph), r*Math.cos(ph)*Math.sin(th)); }
+
+  function worldToScreen(p){
+    const camPos = sph(cam.r, cam.theta, cam.phi);
+    const fwd = nrm(sub(cam.target, camPos));
+    const right = nrm(crs(fwd, V(0,1,0)));
+    const up = nrm(crs(right, fwd));
+    const rel = sub(p, camPos);
+    const x = rel.x*right.x + rel.y*right.y + rel.z*right.z;
+    const y = rel.x*up.x    + rel.y*up.y    + rel.z*up.z;
+    const z = rel.x*fwd.x   + rel.y*fwd.y   + rel.z*fwd.z;
+    const s = cam.fov / Math.max(1e-6, (cam.fov + z));
+    return {x: cx + x*s, y: cy - y*s, z};
   }
+  function projectRadius(r){
+    const a = worldToScreen(V(r,0,0)), b = worldToScreen(V(0,0,0));
+    return Math.hypot(a.x-b.x, a.y-b.y);
+  }
+
+  // ==== Keplero: elementi → stato (posizione)
+  function elementsToState(a,e,i,raan,argp,M0,tt){
+    const n = Math.sqrt(MU/Math.pow(a,3));
+    const M = (M0 + n*tt) % (2*Math.PI);
+    // Newton-Raphson per E
+    let E = M;
+    for(let k=0;k<8;k++){
+      const f = E - e*Math.sin(E) - M;
+      const fp= 1 - e*Math.cos(E);
+      E -= f/fp;
+    }
+    const cosE = Math.cos(E), sinE = Math.sin(E);
+    const nu = Math.atan2(Math.sqrt(1-e*e)*sinE, cosE - e);
+    const r  = a*(1 - e*cosE);
+    const xpf = r*Math.cos(nu), ypf = r*Math.sin(nu);
+
+    const cO=Math.cos(raan), sO=Math.sin(raan);
+    const ci=Math.cos(i),    si=Math.sin(i);
+    const co=Math.cos(argp), so=Math.sin(argp);
+
+    const x = (cO*co - sO*so*ci)*xpf + (-cO*so - sO*co*ci)*ypf;
+    const y = (so*si)*xpf + (co*si)*ypf;
+    const z = (sO*co + cO*so*ci)*xpf + (-sO*so + cO*co*ci)*ypf;
+    return V(x,y,z);
+  }
+
+  // ==== Disegno Terra e HUD
+  function drawEarth(){
+    const R = projectRadius(R_EARTH);
+    const c = worldToScreen(V(0,0,0));
+    if (showShadow){
+      const g = ctx.createRadialGradient(cx-0.25*R, cy-0.12*R, R*0.2, cx, cy, R*1.3);
+      g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,0.46)");
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(c.x,c.y,R,0,Math.PI*2); ctx.fill();
+    }
+    const sea = ctx.createRadialGradient(c.x-0.3*R, c.y-0.35*R, R*0.2, c.x, c.y, R*1.1);
+    sea.addColorStop(0,"#2a6fdb"); sea.addColorStop(1,"#0a1d47");
+    ctx.fillStyle=sea; ctx.beginPath(); ctx.arc(c.x,c.y,R,0,Math.PI*2); ctx.fill();
+    if (showAtmo){
+      const Ra = R*1.04;
+      const a = ctx.createRadialGradient(c.x,c.y,R*0.95,c.x,c.y,Ra);
+      a.addColorStop(0,"rgba(120,200,255,.05)"); a.addColorStop(1,"rgba(120,200,255,0)");
+      ctx.fillStyle=a; ctx.beginPath(); ctx.arc(c.x,c.y,Ra,0,Math.PI*2); ctx.fill();
+    }
+    if (showAxes){
+      ctx.strokeStyle="rgba(255,255,255,.2)"; ctx.lineWidth=1; ctx.beginPath();
+      const A=[V(R_EARTH*1.3,0,0),V(-R_EARTH*1.3,0,0),V(0,R_EARTH*1.3,0),V(0,-R_EARTH*1.3,0),V(0,0,R_EARTH*1.3),V(0,0,-R_EARTH*1.3)];
+      for(let i=0;i<A.length;i+=2){const a=worldToScreen(A[i]), b=worldToScreen(A[i+1]); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);}
+      ctx.stroke();
+    }
+  }
+  function drawOrbitPath(points){
+    if (!showOrbit || points.length<2) return;
+    ctx.strokeStyle="rgba(96,165,250,.85)"; ctx.lineWidth=1.6; ctx.beginPath();
+    let s=worldToScreen(points[0]); ctx.moveTo(s.x,s.y);
+    for(let i=1;i<points.length;i++){ s=worldToScreen(points[i]); ctx.lineTo(s.x,s.y); }
+    ctx.stroke();
+  }
+  function drawCubeSat(p){
+    const s = worldToScreen(p);
+    const size = clamp(8 + 1200/(1 + s.z + 1e-6), 2, 14);
+    ctx.fillStyle="#eaf1ff"; ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.rect(s.x-size/2, s.y-size/2, size, size); ctx.fill(); ctx.stroke();
+    ctx.fillStyle="#60a5fa"; // pannelli
+    ctx.fillRect(s.x - size*1.9, s.y - size*0.3, size*0.7, size*0.6);
+    ctx.fillRect(s.x + size*1.2, s.y - size*0.3, size*0.7, size*0.6);
+  }
+
+  const hud = document.getElementById('hud');
+  const updateHUD = (a,e,i,raan,argp,M0,alt,t) => {
+    hud.textContent = `t=${t.toFixed(1)}s | alt=${(alt/1000).toFixed(0)}km | a=${(a/1000).toFixed(0)}km | e=${e.toFixed(3)} | i=${inclDeg.toFixed(1)}° | Ω=${raanDeg|0}° | ω=${argpDeg|0}° | M₀=${m0Deg|0}°`;
+  };
+
+  // ==== UI bindings
+  const el = id=>document.getElementById(id);
+  const S = {
+    per: el('perigee'), apo: el('apogee'), incl: el('incl'), raan: el('raan'),
+    argp: el('argp'), m0: el('m0'), ts: el('timescale'), trail: el('trail'),
+    scenario: el('scenario')
+  };
+  const Vals = {
+    per: el('perigeeVal'), apo: el('apogeeVal'), incl: el('inclVal'), raan: el('raanVal'),
+    argp: el('argpVal'), m0: el('m0Val'), ts: el('timescaleVal'), trail: el('trailVal')
+  };
+  showAxes = el('showAxes').checked; el('showAxes').onchange = e=>showAxes=e.target.checked;
+  showOrbit= el('showOrbit').checked; el('showOrbit').onchange= e=>showOrbit=e.target.checked;
+  showAtmo = el('atmo').checked;     el('atmo').onchange     = e=>showAtmo=e.target.checked;
+  showShadow=el('shadow').checked;   el('shadow').onchange   = e=>showShadow=e.target.checked;
+
+  function syncUI(){
+    perigeeAlt = +S.per.value*1000;   Vals.per.textContent = (perigeeAlt/1000).toFixed(0);
+    apogeeAlt  = +S.apo.value*1000;   Vals.apo.textContent = (apogeeAlt/1000).toFixed(0);
+    inclDeg    = +S.incl.value;       Vals.incl.textContent= inclDeg.toFixed(0);
+    raanDeg    = +S.raan.value;       Vals.raan.textContent= raanDeg.toFixed(0);
+    argpDeg    = +S.argp.value;       Vals.argp.textContent= argpDeg.toFixed(0);
+    m0Deg      = +S.m0.value;         Vals.m0.textContent  = m0Deg.toFixed(0);
+    timescale  = +S.ts.value;         Vals.ts.textContent  = timescale.toFixed(1)+'×';
+    trailMax   = +S.trail.value;      Vals.trail.textContent = trailMax.toFixed(0);
+    trail = []; // reset scia quando cambiano parametri
+  }
+  S.per.oninput=S.apo.oninput=S.incl.oninput=S.raan.oninput=S.argp.oninput=S.m0.oninput=S.ts.oninput=S.trail.oninput=syncUI;
+
+  S.scenario.onchange = ()=>{
+    const v=S.scenario.value;
+    if (v==='launch'){ S.per.value=200; S.apo.value=400; S.incl.value=51; S.raan.value=0; S.argp.value=0; S.m0.value=0; S.ts.value=3; S.trail.value=400; }
+    else if (v==='leo'){ S.per.value=400; S.apo.value=400; S.incl.value=51; S.raan.value=0; S.argp.value=0; S.m0.value=0; S.ts.value=5; S.trail.value=800; }
+    else if (v==='ellipse'){ S.per.value=300; S.apo.value=800; S.incl.value=63; S.raan.value=90; S.argp.value=30; S.m0.value=0; S.ts.value=6; S.trail.value=1000; }
+    else if (v==='gto'){ S.per.value=250; S.apo.value=35786; S.incl.value=27; S.raan.value=20; S.argp.value=180; S.m0.value=0; S.ts.value=30; S.trail.value=2000; }
+    syncUI();
+  };
+
+  document.getElementById('btnPlay').onclick = ()=>running=true;
+  document.getElementById('btnPause').onclick= ()=>running=false;
+  document.getElementById('btnReset').onclick= ()=>{ t=0; trail=[]; };
+
+  // ==== Deriva elementi da UI
+  function deriveElements(){
+    const rp = R_EARTH + perigeeAlt;
+    const ra = R_EARTH + apogeeAlt;
+    const a = 0.5*(rp+ra);
+    const e = (ra - rp) / (ra + rp);
+    const i = toRad(inclDeg);
+    const raan = toRad(raanDeg);
+    const argp = toRad(argpDeg);
+    const M0 = toRad(m0Deg);
+    return {a,e,i,raan,argp,M0};
+  }
+
+  // Lancio (transizione) — ramp su e,i,Ω,ω,M0
+  function simulateLaunch(dt, el){
+    t += dt;
+    const k = Math.max(0, Math.min(1, t/120));
+    return elementsToState(el.a, el.e*k, el.i*k, el.raan*k, el.argp*k, el.M0*k, t);
+  }
+
+  // ==== Loop
+  let last = performance.now();
+  function loop(now){
+    requestAnimationFrame(loop);
+    let dt = (now - last)/1000; last = now;
+    dt = Math.min(dt, 0.05);
+
+    const el = deriveElements();
+    let pos;
+    if (S.scenario.value==='launch'){
+      pos = simulateLaunch(dt*timescale, el);
+    } else {
+      if (running) t += dt*timescale;
+      pos = elementsToState(el.a, el.e, el.i, el.raan, el.argp, el.M0, t);
+    }
+
+    // trail
+    if (running){
+      trail.push(pos);
+      if (trail.length>trailMax) trail.shift();
+    }
+
+    // camera leggera
+    cam.theta += 0.03*dt;
+    cam.phi = 0.9 + 0.15*Math.sin(now*0.0005);
+
+    // draw
+    ctx.clearRect(0,0,W,H);
+    drawStars(now);
+    drawEarth();
+    drawOrbitPath(trail);
+    drawCubeSat(pos);
+
+    const alt = Math.hypot(pos.x,pos.y,pos.z) - R_EARTH;
+    updateHUD(el.a, el.e, el.i, el.raan, el.argp, el.M0, alt, t);
+  }
+  requestAnimationFrame(loop);
+
+  function drawStars(now){
+    const n=140;
+    ctx.save(); ctx.globalAlpha=0.85;
+    for(let i=0;i<n;i++){
+      const x=(i*97 % W), y=(i*233 % H);
+      const tw=(Math.sin(now*0.001+i)*0.5+0.5)*0.7+0.3;
+      ctx.fillStyle=`rgba(255,255,255,${tw.toFixed(3)})`;
+      ctx.fillRect(x,y,1,1);
+    }
+    ctx.restore();
+  }
+
+  // responsive canvas
+  function onResize(){
+    const r=canvas.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+    canvas.width = Math.max(640, Math.floor(r.width*dpr));
+    canvas.height= Math.floor(canvas.width*9/16);
+    W=canvas.width; H=canvas.height; cx=W/2; cy=H/2;
+  }
+  window.addEventListener('resize', onResize);
+  onResize();
+  syncUI();
+})();
 </script>
 </body>
 </html>
