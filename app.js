@@ -1,41 +1,34 @@
 /* CubeSat Orbit Lab — v3.1 (Canvas 2D completo) */
 (function(){
   'use strict';
-  // === Costanti fisiche ===
   const R_EARTH = 6371e3;
   const MU      = 3.986004418e14;
-  const RHO0    = 1.225;   // aria al suolo
-  const Hs      = 8500.0;  // scala di altezza [m]
+  const RHO0    = 1.225;
+  const Hs      = 8500.0;
 
-  // === Canvas / stato base ===
   const canvas = document.getElementById('view');
   const ctx    = canvas.getContext('2d');
   let W = canvas.width, H = canvas.height, cx = W/2, cy = H/2;
 
-  let running = false;      // <- Play/Pausa
-  let t = 0;                // tempo simulazione [s]
-  let starT = 0;            // tempo scintillio stelle (solo in PLAY)
-  let timescale = 5;        // fattore velocità sim
+  let running = false;
+  let t = 0;
+  let starT = 0;
+  let timescale = 5;
   let trailMax = 800;
   let trail = [];
-  let logSamples = [];      // per export
+  let logSamples = [];
 
-  // === Elementi orbitali (UI) ===
   let perigeeAlt = 400e3, apogeeAlt = 400e3;
   let inclDeg = 51, raanDeg = 0, argpDeg = 0, m0Deg = 0;
 
-  // === Drag ===
   let useDrag = false;
-  let CdA_over_m = 0.02;    // m²/kg
+  let CdA_over_m = 0.02;
 
-  // === Flag di rendering ===
   let showAxes=true, showOrbit=true, showAtmo=true, showShadow=true;
 
-  // === Camera & Sole (per ombra) ===
   let cam = { r: 2.8*R_EARTH, theta:-0.8, phi:0.9, fov:900, target:{x:0,y:0,z:0} };
-  let sunTheta = 0; // ruota lentamente quando running=true
+  let sunTheta = 0;
 
-  // === Utils vettoriali ===
   const v3   = (x,y,z)=>({x,y,z});
   const add  = (a,b)=>v3(a.x+b.x,a.y+b.y,a.z+b.z);
   const sub  = (a,b)=>v3(a.x-b.x,a.y-b.y,a.z-b.z);
@@ -47,7 +40,6 @@
   const rad  = d=>d*Math.PI/180;
   const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
 
-  // === Coordinate camera ===
   function sph(r,th,ph){ return v3(r*Math.cos(ph)*Math.cos(th), r*Math.sin(ph), r*Math.cos(ph)*Math.sin(th)); }
   function worldToScreen(p){
     const camPos = sph(cam.r,cam.theta,cam.phi);
@@ -64,19 +56,15 @@
     const c = worldToScreen(v3(0,0,0));
     const dx=p.x-c.x, dy=p.y-c.y; return Math.hypot(dx,dy);
   }
-
-  // === Direzione Sole (per terminatore) ===
   function sunDir(){
     const th=sunTheta, ph=0.2;
     const x=Math.cos(ph)*Math.cos(th), z=Math.cos(ph)*Math.sin(th), y=Math.sin(ph);
     const n=Math.sqrt(x*x+y*y+z*z)||1; return {x:x/n,y:y/n,z:z/n};
   }
 
-  // === Keplero: elementi → stato (pos, vel) ===
   function elementsToStateVel(a,e,i,raan,argp,M0,tsec){
     const n = Math.sqrt(MU/Math.pow(a,3));
     const M = (M0 + n*tsec)%(2*Math.PI);
-    // Keplero ellittico: risolvi E
     let E = M;
     for(let k=0;k<10;k++){
       const f  = E - e*Math.sin(E) - M;
@@ -84,15 +72,12 @@
       E -= f/fp;
     }
     const cE=Math.cos(E), sE=Math.sin(E), fac=Math.sqrt(1-e*e);
-    const nu=Math.atan2(fac*sE, cE-e);           // anomalia vera
+    const nu=Math.atan2(fac*sE, cE-e);
     const r = a*(1-e*cE);
-
-    // PQW
     const x_pf=r*Math.cos(nu), y_pf=r*Math.sin(nu);
     const vx_pf=-Math.sqrt(MU*a)/r * sE;
     const vy_pf= Math.sqrt(MU*a)/r * fac * cE;
 
-    // Rotazioni (Ω,i,ω)
     const cO=Math.cos(raan), sO=Math.sin(raan);
     const ci=Math.cos(i),    si=Math.sin(i);
     const co=Math.cos(argp), so=Math.sin(argp);
@@ -111,22 +96,14 @@
 
     return { r:v3(X,Y,Z), v:v3(VX,VY,VZ) };
   }
-
   function deriveElements(){
     const rp = R_EARTH + perigeeAlt;
     const ra = R_EARTH + apogeeAlt;
     const a  = 0.5*(rp+ra);
     const e  = (ra - rp) / (ra + rp);
-    return {
-      a, e,
-      i:    rad(inclDeg),
-      raan: rad(raanDeg),
-      argp: rad(argpDeg),
-      M0:   rad(m0Deg)
-    };
+    return { a, e, i:rad(inclDeg), raan:rad(raanDeg), argp:rad(argpDeg), M0:rad(m0Deg) };
   }
 
-  // === Dinamica numerica con drag (stato) ===
   let dyn = { r:v3(R_EARTH+perigeeAlt,0,0), v:v3(0,0,0) };
   function accel(r,v){
     const rmag=len(r);
@@ -138,15 +115,12 @@
     return add(aG, aD);
   }
 
-  // === Disegno Terra + terminatore ===
   function drawEarthWithShadow(){
     const p = worldToScreen(v3(0,0,0));
     const Rpx = projectRadius(R_EARTH);
-    // disco base
     ctx.fillStyle = "#13306d";
     ctx.beginPath(); ctx.arc(p.x,p.y,Rpx,0,Math.PI*2); ctx.fill();
 
-    // terminatore orientato alla direzione Sole
     const sd = sunDir();
     const d2d = worldToScreen(sd);
     let dx=d2d.x-cx, dy=d2d.y-cy; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
@@ -200,7 +174,6 @@
     }
   }
 
-  // === Stelle, orbita, satellite ===
   function drawStars(twinkleT){
     ctx.save(); ctx.globalAlpha = 0.85;
     for (let i=0;i<160;i++){
@@ -223,8 +196,7 @@
   }
   function drawCubeSat(p){
     const s = worldToScreen(p);
-    const size = clamp(8 + 1200/(1 + s.z + 1e-6), 2, 14);
-    // illuminazione lato giorno (grossolana)
+    const size = Math.min(14, Math.max(2, 8 + 1200/(1 + s.z + 1e-6)));
     const lit = dot(nrm(p), sunDir()) > 0;
     ctx.fillStyle = lit ? "#eaf1ff" : "#9aa6bf";
     ctx.strokeStyle="rgba(0,0,0,0.25)"; ctx.lineWidth=1;
@@ -234,11 +206,9 @@
     ctx.fillRect(s.x + size*1.2,             s.y - size*0.3, size*0.7, size*0.6);
   }
 
-  // === HUD ===
   const hud = document.getElementById('hud');
   const HUD = s => hud.textContent = s;
 
-  // === UI refs ===
   const elPer   = document.getElementById('perigee');
   const elApo   = document.getElementById('apogee');
   const elIncl  = document.getElementById('incl');
@@ -292,19 +262,15 @@
     elTrailV.textContent= trailMax.toFixed(0);
     elCdAV.textContent  = CdA_over_m.toFixed(3);
 
-    // reset traccia/log quando cambio parametri
     trail = [];
     logSamples = [];
 
-    // se entro in modalità drag, inizializzo stato numerico coerente
     if (useDrag){
       const E = deriveElements();
       const sv = elementsToStateVel(E.a,E.e,E.i,E.raan,E.argp,E.M0,t);
       dyn.r = sv.r; dyn.v = sv.v;
     }
   }
-
-  // bind controlli
   [elPer,elApo,elIncl,elRAAN,elArgp,elM0,elTS,elTrail,elCdA].forEach(n=>{
     n.addEventListener('input', syncUI);
     n.addEventListener('change', syncUI);
@@ -324,19 +290,17 @@
     syncUI();
   };
 
-  // Pulsanti
   btnPlay.onclick  = ()=>{ running=true;  btnPlay.classList.add('primary'); btnPause.classList.remove('primary'); };
   btnPause.onclick = ()=>{ running=false; btnPause.classList.add('primary'); btnPlay.classList.remove('primary'); };
   btnReset.onclick = ()=>{
     running=false; t=0; starT=0; trail=[]; logSamples=[];
     btnPause.classList.add('primary'); btnPlay.classList.remove('primary');
-    // quando resetto in drag, ricostruisco stato
     if (useDrag){ const E=deriveElements(); const sv=elementsToStateVel(E.a,E.e,E.i,E.raan,E.argp,E.M0,t); dyn.r=sv.r; dyn.v=sv.v; }
   };
   btnExport.onclick= ()=>{
     if (!logSamples.length){ alert("Nessun dato da esportare. Premi PLAY."); return; }
-    const header="t_s,x_m,y_m,z_m,alt_km,speed_mps\n";
-    const lines=[header, ...logSamples.map(r=>r.join(",")+"\n")];
+    const header="t_s,x_m,y_m,z_m,alt_km,speed_mps\\n";
+    const lines=[header, ...logSamples.map(r=>r.join(",")+"\\n")];
     const blob = new Blob(lines, {type:"text/csv"});
     const url  = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href=url; a.download="cubesat_telemetry.csv";
@@ -349,7 +313,6 @@
     }
   });
 
-  // === Resize ===
   function onResize(){
     const r = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio||1;
@@ -360,22 +323,19 @@
   window.addEventListener('resize', onResize);
   onResize(); syncUI();
 
-  // === Main loop ===
   let lastTS = performance.now();
   function loop(now){
     requestAnimationFrame(loop);
     let dt = (now - lastTS)/1000; lastTS = now;
     dt = Math.min(dt, 0.05);
 
-    // Tempo/animazioni SOLO in PLAY
     if (running){ t += dt*timescale; sunTheta += dt*0.05; starT += dt; }
 
     const E = deriveElements();
     let pos, vel, spd;
 
     if (elScenario.value==='launch' && !useDrag){
-      // transizione “lancio” semplificata: elementi che crescono fino a target
-      const k = clamp(t/120, 0, 1);
+      const k = Math.max(0, Math.min(1, t/120));
       const a=E.a, e=E.e*k, i=E.i*k, raan=E.raan*k, argp=E.argp*k, M0=E.M0*k;
       const sv = elementsToStateVel(a,e,i,raan,argp,M0,t);
       pos=sv.r; vel=sv.v; spd=len(vel);
@@ -383,7 +343,6 @@
       const sv = elementsToStateVel(E.a,E.e,E.i,E.raan,E.argp,E.M0,t);
       pos=sv.r; vel=sv.v; spd=len(vel);
     } else {
-      // integrazione RK2 con drag — SOLO in PLAY
       if (running){
         const substeps = Math.max(1, Math.floor(timescale));
         const hdt = (dt*timescale)/substeps;
@@ -399,18 +358,15 @@
       pos=dyn.r; vel=dyn.v; spd=len(vel);
     }
 
-    // Aggiorna traccia/log SOLO in PLAY
     if (running){
       trail.push(pos); if (trail.length>trailMax) trail.shift();
       const alt = len(pos) - R_EARTH;
       logSamples.push([t.toFixed(2), pos.x.toFixed(1), pos.y.toFixed(1), pos.z.toFixed(1), (alt/1000).toFixed(2), spd.toFixed(2)]);
       if (logSamples.length>50000) logSamples.shift();
-      // Camera leggera
       cam.theta += 0.03*dt;
       cam.phi = 0.9 + 0.15*Math.sin(t*0.0005);
     }
 
-    // Render
     ctx.clearRect(0,0,W,H);
     drawStars(starT);
     if (showShadow) drawEarthWithShadow(); else drawEarthPlain();

@@ -1,22 +1,113 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CubeSat Orbit Lab v3.1 Light</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>CubeSat Orbit Lab — v3.1</title>
+  <meta name="theme-color" content="#0b1022">
+  <meta name="description" content="Simulatore divulgativo: orbite CubeSat con canvas 2D (quasi‑3D).">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
-<header>
-  <h1>🛰️ CubeSat Orbit Lab v3.1 Light</h1>
-  <div class="controls">
-    <button id="btnPlay" class="primary">PLAY</button>
-    <button id="btnPause">PAUSA</button>
-    <button id="btnReset">RESET</button>
+<header class="hero">
+  <div class="brand">
+    <img src="icons/icon-192.png" alt="Icona" class="logo">
+    <div class="titles">
+      <h1>CubeSat Orbit Lab v3.1</h1>
+      <p class="tag">Canvas 2D quasi‑3D · Keplero + Drag · PWA</p>
+    </div>
   </div>
+  <nav>
+    <button id="btnPlay" class="primary">PLAY</button>
+    <button id="btnPause" class="ghost">PAUSA</button>
+    <button id="btnReset" class="ghost">RESET</button>
+    <button id="btnExport" class="ghost">Export CSV</button>
+    <button id="btnInstall" class="ghost install" hidden>INSTALLA</button>
+  </nav>
 </header>
-<canvas id="view" width="960" height="540"></canvas>
-<div id="hud"></div>
+
+<main>
+  <section class="canvas-wrap">
+    <canvas id="view" width="960" height="540" aria-label="Simulazione orbita CubeSat"></canvas>
+    <div class="hud" id="hud"></div>
+  </section>
+
+  <section class="controls">
+    <div class="group">
+      <label>Scenario
+        <select id="scenario">
+          <option value="launch">Lancio → Inserimento in orbita</option>
+          <option value="leo" selected>LEO Circolare 400 km</option>
+          <option value="ellipse">Ellittica 300 × 800 km</option>
+          <option value="gto">GTO semplificata</option>
+        </select>
+      </label>
+      <label class="toggle-inline"><input type="checkbox" id="drag"> Drag atmosferico (LEO)</label>
+      <label>Cd·A/m (m²/kg)
+        <input id="cda" type="range" min="0.001" max="0.2" step="0.001" value="0.02">
+        <span id="cdaVal">0.020</span>
+      </label>
+    </div>
+    <div class="group">
+      <label>Altitudine Perigeo (km)
+        <input id="perigee" type="range" min="180" max="2000" step="10" value="400">
+        <span id="perigeeVal">400</span>
+      </label>
+      <label>Altitudine Apogeo (km)
+        <input id="apogee" type="range" min="180" max="36000" step="10" value="400">
+        <span id="apogeeVal">400</span>
+      </label>
+    </div>
+    <div class="group">
+      <label>Inclinazione (°)
+        <input id="incl" type="range" min="0" max="98" step="1" value="51">
+        <span id="inclVal">51</span>
+      </label>
+      <label>RAAN Ω (°)
+        <input id="raan" type="range" min="0" max="360" step="1" value="0">
+        <span id="raanVal">0</span>
+      </label>
+      <label>Argomento del perigeo ω (°)
+        <input id="argp" type="range" min="0" max="360" step="1" value="0">
+        <span id="argpVal">0</span>
+      </label>
+      <label>Anomalia media M₀ (°)
+        <input id="m0" type="range" min="0" max="360" step="1" value="0">
+        <span id="m0Val">0</span>
+      </label>
+    </div>
+    <div class="group">
+      <label>Velocità Simulazione
+        <input id="timescale" type="range" min="0.1" max="240" step="0.1" value="5">
+        <span id="timescaleVal">5×</span>
+      </label>
+      <label>Trail
+        <input id="trail" type="range" min="0" max="5000" step="10" value="800">
+        <span id="trailVal">800</span>
+      </label>
+    </div>
+    <div class="group toggles">
+      <label><input type="checkbox" id="showAxes" checked> Assi</label>
+      <label><input type="checkbox" id="showOrbit" checked> Orbita</label>
+      <label><input type="checkbox" id="atmo" checked> Atmosfera</label>
+      <label><input type="checkbox" id="shadow" checked> Ombra Terra</label>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>© 2025 pezzaliAPP — MIT License.</p>
+</footer>
+
 <script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('service-worker.js');
+    });
+  }
+</script>
 </body>
 </html>
