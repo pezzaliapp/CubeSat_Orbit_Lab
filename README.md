@@ -1,13 +1,14 @@
-# CubeSat Orbit Lab — pezzaliAPP (v3)
+# CubeSat Orbit Lab — v4.0 (Three.js SAFE Edition)
 
-Aggiunte principali:
-- **Drag atmosferico (LEO)** con parametro **BC (Cd·A/m)** semplificato
-- **Ombra** con umbra/penombra + rilevamento eclissi del CubeSat
-- **Export CSV** telemetria (t, x, y, z, alt, a, e, i, RAAN, ω, M₀)
-- **Landing hero** e micro-animazioni stile KubeApp
+Three.js 3D · Keplero + Drag · Trail · Starfield · PWA
 
-## Note sul drag
-Modello esponenziale molto semplificato: ρ = ρ₀·exp(-h/Hs) con ρ₀=1.225 kg/m³, Hs=8.5 km.
-Decadimento di a ed e proporzionale a ρ e v³ (euristico per scopi divulgativi).
+## Features
+- Earth 3D with realistic rotation (axis + equator)
+- 3D CubeSat on keplerian orbit, trail line
+- Dynamic sun light, starfield sky
+- Controls: Play/Pause/Step/Reset/Export CSV/Camera Orbit
+- Params: a, e, i, Ω, ω, M₀, CdA/m, timescale, drag on/off
+- HUD + mini ground-track
+- PWA offline (assets included). Note: three.js via CDN — for 100% offline, add local `three.min.js`
 
-MIT — © 2025 pezzaliAPP
+MIT © 2025 pezzaliAPP
