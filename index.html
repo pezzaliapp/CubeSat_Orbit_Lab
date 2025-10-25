@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>CubeSat Orbit Lab — pezzaliAPP</title>
+  <meta name="theme-color" content="#0b1022">
+  <meta name="description" content="Simulatore divulgativo di lancio e orbite di un satellite CubeSat. Canvas 2D con proiezione 3D, PWA offline.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <img src="icons/icon-192.png" alt="Icona" class="logo">
+    <h1>CubeSat Orbit Lab</h1>
+  </div>
+  <nav>
+    <button id="btnPlay" class="primary">PLAY</button>
+    <button id="btnPause" class="ghost">PAUSA</button>
+    <button id="btnReset" class="ghost">RESET</button>
+    <button id="btnInstall" class="ghost install" hidden>INSTALLA</button>
+  </nav>
+</header>
+
+<main>
+  <section class="canvas-wrap">
+    <canvas id="view" width="960" height="540" aria-label="Simulazione orbita CubeSat"></canvas>
+    <div class="hud" id="hud"></div>
+  </section>
+
+  <section class="controls">
+    <div class="group">
+      <label>Scenario
+        <select id="scenario">
+          <option value="launch">Lancio → Inserimento in orbita</option>
+          <option value="leo">LEO Circolare 400 km</option>
+          <option value="ellipse">Ellittica 300 × 800 km</option>
+          <option value="gto">GTO semplificata</option>
+        </select>
+      </label>
+    </div>
+    <div class="group">
+      <label>Altitudine Perigeo (km)
+        <input id="perigee" type="range" min="180" max="2000" step="10" value="400">
+        <span id="perigeeVal">400</span>
+      </label>
+      <label>Altitudine Apogeo (km)
+        <input id="apogee" type="range" min="180" max="36000" step="10" value="400">
+        <span id="apogeeVal">400</span>
+      </label>
+    </div>
+    <div class="group">
+      <label>Inclinazione (°)
+        <input id="incl" type="range" min="0" max="98" step="1" value="51">
+        <span id="inclVal">51</span>
+      </label>
+      <label>RAAN Ω (°)
+        <input id="raan" type="range" min="0" max="360" step="1" value="0">
+        <span id="raanVal">0</span>
+      </label>
+      <label>Argomento del perigeo ω (°)
+        <input id="argp" type="range" min="0" max="360" step="1" value="0">
+        <span id="argpVal">0</span>
+      </label>
+      <label>Anomalia media M₀ (°)
+        <input id="m0" type="range" min="0" max="360" step="1" value="0">
+        <span id="m0Val">0</span>
+      </label>
+    </div>
+    <div class="group">
+      <label>Velocità Simulazione
+        <input id="timescale" type="range" min="0.1" max="120" step="0.1" value="5">
+        <span id="timescaleVal">5×</span>
+      </label>
+      <label>Trail
+        <input id="trail" type="range" min="0" max="2000" step="10" value="600">
+        <span id="trailVal">600</span>
+      </label>
+    </div>
+    <div class="group toggles">
+      <label><input type="checkbox" id="showAxes" checked> Assi</label>
+      <label><input type="checkbox" id="showOrbit" checked> Orbita</label>
+      <label><input type="checkbox" id="atmo" checked> Atmosfera</label>
+      <label><input type="checkbox" id="shadow" checked> Ombra Terra</label>
+    </div>
+  </section>
+
+  <section class="about">
+    <h2>Cos'è</h2>
+    <p><strong>CubeSat Orbit Lab</strong> è un gioco scientifico divulgativo che mostra come un <em>CubeSat</em> viene inserito in orbita e come si muove attorno alla Terra.
+       L'animazione usa un canvas 2D con proiezione prospettica per un effetto "quasi 3D" leggero e portabile.</p>
+    <p>Scritta in JavaScript puro, funziona offline come <strong>Progressive Web App</strong> e non invia dati a server esterni.</p>
+  </section>
+</main>
+
+<footer>
+  <p>© 2025 pezzaliAPP — MIT License · Codice sorgente locale in questa cartella.</p>
+</footer>
+
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('service-worker.js');
+    });
+  }
+</script>
+</body>
+</html>
