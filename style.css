@@ -1,15 +1,7 @@
-/* CubeSat Orbit Lab — Look&Feel KubeApp */
+/* CubeSat Orbit Lab — Look&Feel KubeApp (v4 Three.js) */
 :root{
-  --bg:#050a1e;
-  --bg2:#0a1233;
-  --ink:#eaf1ff;
-  --muted:#99add6;
-  --card:#0b143a;
-  --line:#1b2a66;
-  --cta:#21c8a6;
-  --cta2:#69a1ff;
-  --glow:#2dd4bf;
-  --accent:#8b5cf6;
+  --bg:#050a1e; --bg2:#0a1233; --ink:#eaf1ff; --muted:#9fb0d8;
+  --card:#0b143a; --line:#1b2a66; --cta:#21c8a6; --cta2:#69a1ff; --glow:#2dd4bf; --accent:#8b5cf6;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -21,12 +13,12 @@ body{
     linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
   overflow-x:hidden;
 }
-header{
+.hero{
   display:flex; justify-content:space-between; align-items:center;
   padding:12px 10px; border-bottom:1px solid var(--line);
   position:sticky; top:0; background:#081133cc; backdrop-filter:blur(8px); z-index:10;
 }
-header::after{
+.hero::after{
   content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px;
   background:linear-gradient(90deg, transparent, var(--accent), var(--glow), transparent);
   filter:blur(0.6px); opacity:.8; animation:flow 6s linear infinite;
@@ -34,8 +26,9 @@ header::after{
 @keyframes flow{0%{background-position:-200px 0;}100%{background-position:200px 0;}}
 
 .brand{display:flex; align-items:center; gap:10px}
-.brand .logo{width:28px; height:28px; border-radius:6px; box-shadow:0 0 0 2px #0e1a40 inset}
-h1{font-size:16px; margin:0; letter-spacing:.3px}
+.brand .logo{width:32px; height:32px; border-radius:6px; box-shadow:0 0 0 2px #0e1a40 inset}
+.titles h1{font-size:18px; margin:0; letter-spacing:.3px}
+.titles .tag{margin:0; color:var(--muted); font-size:12px}
 
 nav button{margin-left:6px}
 button{
@@ -43,10 +36,7 @@ button{
   padding:9px 14px; border-radius:12px; cursor:pointer; font-weight:700;
   transition:transform .12s ease, box-shadow .2s ease, background .3s ease, border-color .2s;
 }
-button.primary{
-  background:linear-gradient(180deg,#24d3ae,#1fb58f); color:#051813; border:none;
-  box-shadow:0 0 0 rgba(0,0,0,0);
-}
+button.primary{background:linear-gradient(180deg,#24d3ae,#1fb58f); color:#051813; border:none}
 button.primary:hover{transform:translateY(-1px); box-shadow:0 10px 24px rgba(33,200,166,.25)}
 button.ghost:hover{border-color:#3a4aa0; background:#111d47}
 button.install{background:linear-gradient(180deg,#6aa5ff,#3d7bff); border:none}
@@ -66,6 +56,10 @@ canvas{display:block; width:100%; height:auto}
   box-shadow:0 0 0 1px rgba(45,212,191,.2), 0 0 20px rgba(45,212,191,.1);
   animation: hudpulse 4s ease-in-out infinite;
 }
+.mode-badge{
+  position:absolute; right:10px; top:10px; font:11px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background:#05122f; border:1px solid #16306d; color:#9dbcf9; padding:6px 8px; border-radius:8px; opacity:.9;
+}
 @keyframes hudpulse{
   0%,100%{box-shadow:0 0 0 1px rgba(45,212,191,.2), 0 0 16px rgba(45,212,191,.08)}
   50%{box-shadow:0 0 26px rgba(45,212,191,.2)}
@@ -76,6 +70,7 @@ canvas{display:block; width:100%; height:auto}
 }
 .controls .group{background:linear-gradient(180deg,#0f1742,#0a102f); border:1px solid var(--line); border-radius:14px; padding:12px}
 .controls label{display:block; font-size:13px; color:var(--muted); margin-bottom:8px}
+.controls .toggle-inline{margin-top:8px}
 .controls input[type=range]{width:100%}
 .controls select, .controls input[type=range]{margin-top:6px}
 .controls .toggles{display:flex; gap:16px; flex-wrap:wrap}
