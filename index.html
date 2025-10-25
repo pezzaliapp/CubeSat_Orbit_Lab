@@ -3,22 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <title>CubeSat Orbit Lab</title>
+  <title>CubeSat Orbit Lab — v3.2 SAFE</title>
   <meta name="theme-color" content="#0b1022">
+  <meta name="description" content="Simulatore divulgativo CubeSat: Keplero + Drag, ground‑track, preset. Funziona anche offline.">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <script defer src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
-  <script defer src="https://unpkg.com/three@0.161.0/examples/js/controls/OrbitControls.js"></script>
-  <script defer src="app.js"></script>
 </head>
 <body>
 <header class="hero">
   <div class="brand">
     <img src="icons/icon-192.png" alt="Icona" class="logo">
     <div class="titles">
-      <h1>CubeSat Orbit Lab</h1>
-      <p class="tag">Three.js Edition · Keplero + Drag · PWA</p>
+      <h1>CubeSat Orbit Lab v3.2 SAFE</h1>
+      <p class="tag">Canvas 2D quasi‑3D · Keplero + Drag · Ground‑track · PWA Offline</p>
     </div>
   </div>
   <nav class="controls-bar">
@@ -27,17 +25,15 @@
     <button id="btnStep" class="ghost">STEP Δt</button>
     <button id="btnReset" class="ghost">RESET</button>
     <button id="btnExport" class="ghost">Export CSV</button>
-    <button id="btnCamOrbit" class="ghost">Ruota Camera</button>
     <button id="btnInstall" class="ghost install" hidden>INSTALLA</button>
   </nav>
 </header>
 
 <main>
   <section class="canvas-wrap">
-    <div id="three-root" class="three-root"></div>
+    <canvas id="view" width="1280" height="720" aria-label="Simulazione orbita CubeSat"></canvas>
     <div class="hud" id="hud"></div>
     <canvas id="miniMap" width="280" height="140" class="minimap" aria-label="Ground-track"></canvas>
-    <div id="splash">CubeSat Orbit Lab</div>
   </section>
 
   <section class="controls">
@@ -98,8 +94,17 @@
       <label><input type="checkbox" id="showAxes" checked> Assi</label>
       <label><input type="checkbox" id="showOrbit" checked> Orbita</label>
       <label><input type="checkbox" id="atmo" checked> Atmosfera</label>
-      <label><input type="checkbox" id="shadow" checked> Ombra terrestre</label>
+      <label><input type="checkbox" id="shadow" checked> Ombra Terra</label>
       <label><input type="checkbox" id="legend" checked> Legenda</label>
+    </div>
+    <div class="group">
+      <div class="row">
+        <button id="btnSavePreset">Salva preset</button>
+        <button id="btnLoadPreset">Carica preset</button>
+        <select id="presetList"></select>
+        <button id="btnDeletePreset">Elimina</button>
+      </div>
+      <small class="muted">Barra spaziatrice = Play/Pausa · +/- = velocità · 0 = Reset cam · 1..5 toggles.</small>
     </div>
   </section>
 </main>
@@ -108,6 +113,7 @@
   <p>© 2025 pezzaliAPP — MIT License.</p>
 </footer>
 
+<script src="app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function(){
